@@ -6,10 +6,10 @@ const EventDetailWrapper = () => {
   const { data: event, isLoading, error } = useEventData();
   
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error loading event details</div>;
+  if (error) return <div>Error loading event</div>;
   if (!event) return <div>Event not found</div>;
   
-  return <EventDetail event={event} />;
+  return <EventDetail />;
 };
 
 export default EventDetailWrapper;

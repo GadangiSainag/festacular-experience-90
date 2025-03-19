@@ -8,7 +8,7 @@ const TimelineWrapper = () => {
   if (isLoading) return <div>Loading events...</div>;
   if (error) return <div>Error loading events</div>;
   
-  return <Timeline events={events || []} />;
+  return <Timeline />;
 };
 
 export default TimelineWrapper;

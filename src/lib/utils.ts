@@ -25,11 +25,16 @@ export function isValidEventCategory(category: string): category is EventCategor
 
 // Safe type conversions for Supabase data
 export function safeEvent(data: any): Event {
-  const category = data?.category || 'competition';
+  let category = data?.category || 'competition';
+  // Ensure category is a valid EventCategory
+  if (!isValidEventCategory(category)) {
+    category = 'competition';
+  }
+  
   return {
     id: data?.id || '',
     name: data?.name || '',
-    category: isValidEventCategory(category) ? category : 'competition',
+    category,
     department: data?.department || '',
     college: data?.college || '',
     organizer_id: data?.organizer_id || '',
@@ -49,6 +54,7 @@ export function safeEvent(data: any): Event {
 }
 
 export function safeEventArray(data: any[]): Event[] {
+  if (!Array.isArray(data)) return [];
   return data.map(safeEvent);
 }
 
@@ -72,5 +78,6 @@ export function safeUser(data: any): User {
 }
 
 export function safeUserArray(data: any[]): User[] {
+  if (!Array.isArray(data)) return [];
   return data.map(safeUser);
 }

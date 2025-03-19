@@ -33,13 +33,24 @@ export const db = {
     },
     
     update: async (id: string, updates: Partial<Event>) => {
-      const { error } = await supabase.from('events').update(updates).eq('id', id);
+      // Convert the Event type to database format
+      const dbUpdates: any = { ...updates };
+      
+      const { error } = await supabase.from('events').update(dbUpdates).eq('id', id);
       if (error) throw error;
       return true;
     },
     
     insert: async (event: Partial<Event>) => {
-      const { error } = await supabase.from('events').insert(event);
+      // Make sure required fields are present
+      if (!event.name || !event.category || !event.date || !event.time || !event.venue) {
+        throw new Error("Missing required fields for event");
+      }
+      
+      // Convert the Event type to database format
+      const dbEvent: any = { ...event };
+      
+      const { error } = await supabase.from('events').insert(dbEvent);
       if (error) throw error;
       return true;
     },
@@ -100,6 +111,7 @@ export const db = {
         .from('starred_events')
         .select(`
           id,
+          event_id,
           events:event_id (
             id,
             name,
@@ -109,13 +121,26 @@ export const db = {
             venue,
             description,
             image_url,
-            star_count
+            star_count,
+            is_approved,
+            created_at,
+            updated_at
           )
         `)
         .eq('user_id', userId);
       
       if (error) throw error;
-      return data || [];
+      
+      // Transform the data to match what the component expects
+      const transformedData = (data || []).map(item => ({
+        id: item.id,
+        user_id: userId,
+        event_id: item.event_id,
+        created_at: item.created_at || '',
+        events: safeEvent(item.events)
+      }));
+      
+      return transformedData;
     }
   },
   

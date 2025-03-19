@@ -1,62 +1,12 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Search, X, Filter, MapPin } from "lucide-react";
-import { Event } from "@/types";
-
-// Mock data for the prototype
-const mockEvents = [
-  {
-    id: "1",
-    name: "Coding Challenge",
-    category: "competition",
-    department: "Computer Science",
-    college: "JNTUH",
-    date: "2025-03-25",
-    time: "10:00:00",
-    venue: "CS Lab Complex",
-    longitude: 78.391357,
-    latitude: 17.493034,
-    description: "A competitive coding challenge for all programming enthusiasts.",
-    image_url: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=2072&auto=format&fit=crop",
-    is_approved: true,
-    star_count: 15,
-    created_at: "2023-02-15T10:00:00Z",
-    updated_at: "2023-02-15T10:00:00Z",
-  },
-  {
-    id: "2",
-    name: "AI Workshop",
-    category: "workshop",
-    department: "Computer Science",
-    college: "JNTUH",
-    date: "2025-03-26",
-    time: "14:00:00",
-    venue: "Seminar Hall",
-    longitude: 78.392456,
-    latitude: 17.494123,
-    description: "Learn the basics of Artificial Intelligence and Machine Learning.",
-    image_url: "https://images.unsplash.com/photo-1555255707-c07966088b7b?q=80&w=2036&auto=format&fit=crop",
-    is_approved: true,
-    star_count: 25,
-    created_at: "2023-02-16T10:00:00Z",
-    updated_at: "2023-02-16T10:00:00Z",
-  },
-];
+import { Event, EventCategory } from "@/types";
+import { useAllEvents } from "@/hooks/useEventData";
 
 const Map = () => {
-  const [events, setEvents] = useState<Event[]>(mockEvents);
+  const { data: events = [] } = useAllEvents();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
   
   const formatTime = (timeString: string) => {
     const [hours, minutes] = timeString.split(":");

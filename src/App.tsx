@@ -1,5 +1,5 @@
 
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Outlet } from "react-router-dom";
 import Layout from "./components/layout/Layout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
@@ -17,7 +17,7 @@ import "./App.css";
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Layout />}>
+      <Route path="/" element={<Layout><Outlet /></Layout>}>
         <Route index element={<Index />} />
         <Route path="auth/*" element={<Auth />} />
         <Route path="event/:id" element={<EventDetailWrapper />} />

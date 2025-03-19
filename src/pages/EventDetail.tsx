@@ -1,66 +1,13 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Calendar, Clock, MapPin, Users, ArrowLeft, Share2 } from "lucide-react";
-import { Event } from "@/types";
-
-// Mock data for the prototype
-const mockEvents = [
-  {
-    id: "1",
-    name: "Coding Challenge",
-    category: "competition",
-    department: "Computer Science",
-    college: "JNTUH",
-    date: "2025-03-25",
-    time: "10:00:00",
-    venue: "CS Lab Complex",
-    longitude: 78.391357,
-    latitude: 17.493034,
-    description: "A competitive coding challenge for all programming enthusiasts. Solve algorithmic problems and win exciting prizes!\n\nThis event will test your coding skills, logical thinking, and ability to solve problems under pressure. Participants will be given a set of problems to solve within a limited time frame.\n\nPrizes:\n- First Place: ₹10,000\n- Second Place: ₹5,000\n- Third Place: ₹3,000\n\nRules:\n1. Individual participation only\n2. Any programming language is allowed\n3. Internet access will be restricted\n4. Bringing your own laptop is recommended",
-    image_url: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=2072&auto=format&fit=crop",
-    is_approved: true,
-    star_count: 15,
-    created_at: "2023-02-15T10:00:00Z",
-    updated_at: "2023-02-15T10:00:00Z",
-  },
-  {
-    id: "2",
-    name: "AI Workshop",
-    category: "workshop",
-    department: "Computer Science",
-    college: "JNTUH",
-    date: "2025-03-26",
-    time: "14:00:00",
-    venue: "Seminar Hall",
-    longitude: 78.392456,
-    latitude: 17.494123,
-    description: "Learn the basics of Artificial Intelligence and Machine Learning in this hands-on workshop. Bring your laptops!\n\nThis workshop will cover:\n- Introduction to AI and ML concepts\n- Python programming for AI\n- Working with popular ML libraries\n- Building your first ML model\n- Practical applications of AI\n\nPrerequisites:\n- Basic programming knowledge\n- Laptop with Python installed\n\nThis workshop is perfect for beginners who want to get started with AI and ML. All participants will receive a certificate of participation.",
-    image_url: "https://images.unsplash.com/photo-1555255707-c07966088b7b?q=80&w=2036&auto=format&fit=crop",
-    is_approved: true,
-    star_count: 25,
-    created_at: "2023-02-16T10:00:00Z",
-    updated_at: "2023-02-16T10:00:00Z",
-  },
-];
+import { Event, EventCategory } from "@/types";
+import { useEventData } from "@/hooks/useEventData";
 
 const EventDetail = () => {
-  const { id } = useParams<{ id: string }>();
-  const [event, setEvent] = useState<Event | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: event } = useEventData();
   const [isStarred, setIsStarred] = useState(false);
-  
-  useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      const foundEvent = mockEvents.find((e) => e.id === id);
-      setEvent(foundEvent || null);
-      setIsLoading(false);
-    }, 800);
-    
-    return () => clearTimeout(timer);
-  }, [id]);
   
   const handleStar = () => {
     setIsStarred(!isStarred);
@@ -84,7 +31,7 @@ const EventDetail = () => {
     return `${formattedHours}:${minutes} ${ampm}`;
   };
   
-  const getCategoryColor = (category: string) => {
+  const getCategoryColor = (category: EventCategory) => {
     const colors: Record<string, string> = {
       competition: "bg-festive-blue text-white",
       workshop: "bg-festive-purple text-white",
@@ -99,14 +46,6 @@ const EventDetail = () => {
     };
     return colors[category] || "bg-gray-500 text-white";
   };
-  
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
-      </div>
-    );
-  }
   
   if (!event) {
     return (
