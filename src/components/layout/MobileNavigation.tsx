@@ -3,8 +3,11 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Home, MapPin, Calendar, User } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 const MobileNavigation = () => {
+  const { user } = useAuth();
+  
   return (
     <motion.nav 
       className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-t border-gray-200"
@@ -16,7 +19,7 @@ const MobileNavigation = () => {
         <NavItem to="/" icon={<Home />} label="Events" />
         <NavItem to="/map" icon={<MapPin />} label="Map" />
         <NavItem to="/timeline" icon={<Calendar />} label="Schedule" />
-        <NavItem to="/profile" icon={<User />} label="Profile" />
+        <NavItem to={user ? "/profile" : "/auth"} icon={<User />} label={user ? "Profile" : "Login"} />
       </div>
     </motion.nav>
   );
