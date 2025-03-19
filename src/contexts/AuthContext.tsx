@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -5,6 +6,7 @@ import { User } from "@/types";
 import { AuthState, LoginCredentials, SignupCredentials } from "@/types/auth";
 import { toast } from "sonner";
 import { safeUser } from "@/lib/utils";
+import { db } from "@/integrations/supabase/db";
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -186,12 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error("You must be logged in to request role elevation");
       }
       
-      const { error } = await supabase
-        .from('users')
-        .update({ role_elevation_requested: true })
-        .eq('id', authState.user.id);
-      
-      if (error) throw error;
+      await db.users.requestRoleElevation(authState.user.id);
       
       // Update local state
       setAuthState(prev => ({

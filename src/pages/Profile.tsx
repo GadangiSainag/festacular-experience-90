@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,10 +30,10 @@ import RoleElevationRequest from "@/components/profile/RoleElevationRequest";
 import EventManagement from "@/components/profile/EventManagement";
 import UserSettings from "@/components/profile/UserSettings";
 import AdminPanel from "@/components/profile/AdminPanel";
-import { supabase } from "@/integrations/supabase/client";
 import { Event } from "@/types";
 import { UserCircle, Star, Settings, Calendar, Users, LogOut } from "lucide-react";
 import { safeEventArray } from "@/lib/utils";
+import { db } from "@/integrations/supabase/db";
 
 const Profile = () => {
   const { user, logout } = useAuth();
@@ -44,27 +43,7 @@ const Profile = () => {
     queryKey: ['starredEvents', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      
-      const { data, error } = await supabase
-        .from('starred_events')
-        .select(`
-          id,
-          events:event_id (
-            id,
-            name,
-            category,
-            date,
-            time,
-            venue,
-            description,
-            image_url,
-            star_count
-          )
-        `)
-        .eq('user_id', user.id);
-      
-      if (error) throw error;
-      return data;
+      return db.starredEvents.getByUser(user.id);
     },
     enabled: !!user,
   });
@@ -73,14 +52,7 @@ const Profile = () => {
     queryKey: ['userEvents', user?.id],
     queryFn: async () => {
       if (!user || (user.type !== 'organizer' && user.type !== 'admin')) return [];
-      
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('organizer_id', user.id);
-      
-      if (error) throw error;
-      return safeEventArray(data);
+      return db.events.getByOrganizer(user.id);
     },
     enabled: !!user && (user.type === 'organizer' || user.type === 'admin'),
   });

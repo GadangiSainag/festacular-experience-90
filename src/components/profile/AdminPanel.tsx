@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
@@ -29,12 +28,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDate, safeEventArray, safeUserArray } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { Event, User } from "@/types";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Send, User as UserIcon } from "lucide-react";
+import { db } from "@/integrations/supabase/db";
 
 const AdminPanel = () => {
   const queryClient = useQueryClient();
@@ -49,14 +48,8 @@ const AdminPanel = () => {
   const { data: pendingEvents = [] } = useQuery({
     queryKey: ['pendingEvents'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('is_approved', false)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return safeEventArray(data);
+      if (!currentUser) return [];
+      return db.events.getPending();
     },
     enabled: !!currentUser && currentUser.type === 'admin',
   });
@@ -64,14 +57,8 @@ const AdminPanel = () => {
   const { data: roleRequests = [] } = useQuery({
     queryKey: ['roleRequests'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('role_elevation_requested', true)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return safeUserArray(data);
+      if (!currentUser) return [];
+      return db.users.getRoleRequests();
     },
     enabled: !!currentUser && currentUser.type === 'admin',
   });
@@ -79,13 +66,8 @@ const AdminPanel = () => {
   const { data: allUsers = [] } = useQuery({
     queryKey: ['allUsers'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return safeUserArray(data);
+      if (!currentUser) return [];
+      return db.users.getAll();
     },
     enabled: !!currentUser && currentUser.type === 'admin',
   });
@@ -94,12 +76,7 @@ const AdminPanel = () => {
     if (!eventToApprove || !currentUser) return;
     
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({ is_approved: approve })
-        .eq('id', eventToApprove.id);
-      
-      if (error) throw error;
+      await db.events.update(eventToApprove.id, { is_approved: approve });
       
       toast.success(`Event ${approve ? 'approved' : 'rejected'} successfully`);
       queryClient.invalidateQueries({ queryKey: ['pendingEvents'] });
@@ -116,15 +93,7 @@ const AdminPanel = () => {
     if (!userToUpdate || !currentUser) return;
     
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({ 
-          type: 'organizer',
-          role_elevation_requested: false 
-        })
-        .eq('id', userToUpdate.id);
-      
-      if (error) throw error;
+      await db.users.approveRoleRequest(userToUpdate.id);
       
       toast.success("User role updated to organizer");
       queryClient.invalidateQueries({ queryKey: ['roleRequests'] });
@@ -142,14 +111,7 @@ const AdminPanel = () => {
     if (!updateMessage.trim() || !currentUser) return;
     
     try {
-      const { error } = await supabase
-        .from('festival_updates')
-        .insert({
-          message: updateMessage,
-          admin_id: currentUser.id
-        });
-      
-      if (error) throw error;
+      await db.festivalUpdates.postUpdate(currentUser.id, updateMessage);
       
       toast.success("Update posted successfully");
       setUpdateMessage("");

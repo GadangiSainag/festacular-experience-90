@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -38,7 +37,6 @@ import {
 import { Badge } from "@/components/ui/custom-badge";
 import { toast } from "sonner";
 import { Event } from "@/types";
-import { supabase } from "@/integrations/supabase/client";
 import { formatDate } from "@/lib/utils";
 import { 
   Calendar,
@@ -51,6 +49,7 @@ import {
   Trash2 
 } from "lucide-react";
 import EventForm from "./EventForm";
+import { db } from "@/integrations/supabase/db";
 
 interface EventManagementProps {
   events: Event[];
@@ -68,12 +67,7 @@ const EventManagement: React.FC<EventManagementProps> = ({ events }) => {
     if (!eventToDelete) return;
     
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventToDelete.id);
-      
-      if (error) throw error;
+      await db.events.delete(eventToDelete.id);
       
       queryClient.invalidateQueries({ queryKey: ['userEvents'] });
       toast.success("Event deleted successfully");

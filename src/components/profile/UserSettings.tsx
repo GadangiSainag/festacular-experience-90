@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -23,8 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { User } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { db } from "@/integrations/supabase/db";
 
 const profileSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -68,15 +67,10 @@ const UserSettings: React.FC<UserSettingsProps> = ({ user }) => {
     setIsUpdating(true);
     
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          ...values,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', authUser.id);
-      
-      if (error) throw error;
+      await db.users.update(authUser.id, {
+        ...values,
+        updated_at: new Date().toISOString(),
+      });
       
       toast.success("Profile updated successfully");
     } catch (error: any) {

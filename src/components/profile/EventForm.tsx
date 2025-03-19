@@ -22,10 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Event, EventCategory } from "@/types";
 import { toast } from "sonner";
 import { safeEvent } from "@/lib/utils";
+import { db } from "@/integrations/supabase/db";
 
 const eventCategories: EventCategory[] = [
   'competition',
@@ -111,28 +111,19 @@ const EventForm: React.FC<EventFormProps> = ({ event, onSuccess }) => {
     try {
       if (event) {
         // Update existing event
-        const { error } = await supabase
-          .from('events')
-          .update({
-            ...values,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', event.id);
-        
-        if (error) throw error;
+        await db.events.update(event.id, {
+          ...values,
+          updated_at: new Date().toISOString(),
+        });
         
         toast.success("Event updated successfully");
       } else {
         // Create new event
-        const { error } = await supabase
-          .from('events')
-          .insert({
-            ...values,
-            organizer_id: user.id,
-            is_approved: user.type === 'admin', // Auto-approve for admins
-          });
-        
-        if (error) throw error;
+        await db.events.insert({
+          ...values,
+          organizer_id: user.id,
+          is_approved: user.type === 'admin', // Auto-approve for admins
+        });
         
         toast.success("Event created successfully");
       }
