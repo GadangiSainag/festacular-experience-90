@@ -1,23 +1,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Event } from "@/types";
-import { supabase } from "@/integrations/supabase/client";
-import { safeEvent, safeEventArray } from "@/lib/utils";
+import { db } from "@/integrations/supabase/db";
+import { useParams } from "react-router-dom";
 
-export const useEventData = (eventId?: string) => {
+export const useEventData = () => {
+  const { eventId } = useParams();
+  
   return useQuery({
     queryKey: ['event', eventId],
     queryFn: async () => {
       if (!eventId) return null;
-      
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .single();
-      
-      if (error) throw error;
-      return safeEvent(data);
+      return db.events.getById(eventId);
     },
     enabled: !!eventId,
   });
@@ -27,14 +21,7 @@ export const useAllEvents = () => {
   return useQuery({
     queryKey: ['events'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('is_approved', true)
-        .order('date', { ascending: true });
-      
-      if (error) throw error;
-      return safeEventArray(data || []);
+      return db.events.getAll();
     },
   });
 };

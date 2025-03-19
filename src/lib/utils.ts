@@ -1,42 +1,76 @@
 
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-import { format } from "date-fns";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { Event, EventCategory, User } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
-export const formatDate = (dateString: string) => {
-  if (!dateString) return "N/A";
-  
-  try {
-    const date = new Date(dateString);
-    return format(date, "PPP"); // Format like "Apr 29, 2023"
-  } catch (error) {
-    console.error("Error formatting date:", error);
-    return dateString;
-  }
-};
+// Format date string to a more readable format
+export function formatDate(dateStr: string) {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
 
-// Type safety utility functions for Supabase responses
-export const safeUser = (data: any): User => {
-  return data as User;
-};
+// Type guard for event category
+export function isValidEventCategory(category: string): category is EventCategory {
+  return ['competition', 'workshop', 'stall', 'exhibit', 'performance', 
+          'lecture', 'game', 'food', 'merch', 'art'].includes(category as string);
+}
 
-export const safeEvent = (data: any): Event => {
-  // Ensure category is of type EventCategory
-  if (data && typeof data.category === 'string') {
-    data.category = data.category as EventCategory;
-  }
-  return data as Event;
-};
+// Safe type conversions for Supabase data
+export function safeEvent(data: any): Event {
+  const category = data?.category || 'competition';
+  return {
+    id: data?.id || '',
+    name: data?.name || '',
+    category: isValidEventCategory(category) ? category : 'competition',
+    department: data?.department || '',
+    college: data?.college || '',
+    organizer_id: data?.organizer_id || '',
+    date: data?.date || '',
+    time: data?.time || '',
+    venue: data?.venue || '',
+    longitude: data?.longitude || 0,
+    latitude: data?.latitude || 0,
+    description: data?.description || '',
+    image_url: data?.image_url || '',
+    is_approved: Boolean(data?.is_approved),
+    star_count: data?.star_count || 0,
+    created_at: data?.created_at || '',
+    updated_at: data?.updated_at || '',
+    is_starred: Boolean(data?.is_starred)
+  };
+}
 
-export const safeEventArray = (data: any[]): Event[] => {
-  return data.map(item => safeEvent(item));
-};
+export function safeEventArray(data: any[]): Event[] {
+  return data.map(safeEvent);
+}
 
-export const safeUserArray = (data: any[]): User[] => {
-  return data.map(item => safeUser(item));
-};
+export function safeUser(data: any): User {
+  return {
+    id: data?.id || '',
+    auth_id: data?.auth_id || '',
+    name: data?.name || '',
+    email: data?.email || '',
+    phone: data?.phone || '',
+    passout_year: data?.passout_year,
+    admission_year: data?.admission_year,
+    course: data?.course || '',
+    department: data?.department || '',
+    college: data?.college || '',
+    type: data?.type || 'attendee',
+    role_elevation_requested: Boolean(data?.role_elevation_requested),
+    created_at: data?.created_at || '',
+    updated_at: data?.updated_at || ''
+  };
+}
+
+export function safeUserArray(data: any[]): User[] {
+  return data.map(safeUser);
+}
