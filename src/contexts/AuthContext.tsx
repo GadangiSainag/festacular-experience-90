@@ -1,10 +1,10 @@
-
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 import { AuthState, LoginCredentials, SignupCredentials } from "@/types/auth";
 import { toast } from "sonner";
+import { safeUser } from "@/lib/utils";
 
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (error) throw error;
           
           setAuthState({
-            user: userData as User,
+            user: safeUser(userData),
             session,
             isLoading: false,
             error: null,
@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (!error) {
             setAuthState({
-              user: userData as User,
+              user: safeUser(userData),
               session,
               isLoading: false,
               error: null,

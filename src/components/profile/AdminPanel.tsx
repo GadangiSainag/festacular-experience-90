@@ -31,7 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDate } from "@/lib/utils";
+import { formatDate, safeEventArray, safeUserArray } from "@/lib/utils";
 import { Event, User } from "@/types";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Send, User as UserIcon } from "lucide-react";
@@ -56,7 +56,7 @@ const AdminPanel = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as Event[];
+      return safeEventArray(data);
     },
     enabled: !!currentUser && currentUser.type === 'admin',
   });
@@ -71,7 +71,7 @@ const AdminPanel = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as User[];
+      return safeUserArray(data);
     },
     enabled: !!currentUser && currentUser.type === 'admin',
   });
@@ -85,7 +85,7 @@ const AdminPanel = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as User[];
+      return safeUserArray(data);
     },
     enabled: !!currentUser && currentUser.type === 'admin',
   });

@@ -34,6 +34,7 @@ import AdminPanel from "@/components/profile/AdminPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { Event } from "@/types";
 import { UserCircle, Star, Settings, Calendar, Users, LogOut } from "lucide-react";
+import { safeEventArray } from "@/lib/utils";
 
 const Profile = () => {
   const { user, logout } = useAuth();
@@ -79,7 +80,7 @@ const Profile = () => {
         .eq('organizer_id', user.id);
       
       if (error) throw error;
-      return data as Event[];
+      return safeEventArray(data);
     },
     enabled: !!user && (user.type === 'organizer' || user.type === 'admin'),
   });
