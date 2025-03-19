@@ -112,6 +112,7 @@ export const db = {
         .select(`
           id,
           event_id,
+          created_at,
           events:event_id (
             id,
             name,
