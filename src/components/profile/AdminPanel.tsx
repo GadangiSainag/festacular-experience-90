@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/custom-badge";
 import { Button } from "@/components/ui/button";
 import { 
   Dialog,
@@ -56,7 +56,7 @@ const AdminPanel = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data as Event[];
     },
     enabled: !!currentUser && currentUser.type === 'admin',
   });
@@ -71,7 +71,7 @@ const AdminPanel = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data as User[];
     },
     enabled: !!currentUser && currentUser.type === 'admin',
   });
@@ -85,7 +85,7 @@ const AdminPanel = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      return data as User[];
     },
     enabled: !!currentUser && currentUser.type === 'admin',
   });

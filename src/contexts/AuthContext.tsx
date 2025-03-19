@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (error) throw error;
           
           setAuthState({
-            user: userData,
+            user: userData as User,
             session,
             isLoading: false,
             error: null,
@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (!error) {
             setAuthState({
-              user: userData,
+              user: userData as User,
               session,
               isLoading: false,
               error: null,
