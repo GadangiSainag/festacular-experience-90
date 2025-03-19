@@ -1,9 +1,121 @@
+
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronRight, Clock, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Event, EventCategory } from "@/types";
-import { useAllEvents } from "@/hooks/useEventData";
+import { Event } from "@/types";
+
+// Mock data for the prototype
+const mockEvents = [
+  {
+    id: "1",
+    name: "Coding Challenge",
+    category: "competition",
+    department: "Computer Science",
+    college: "JNTUH",
+    date: "2025-03-25",
+    time: "10:00:00",
+    venue: "CS Lab Complex",
+    longitude: 78.391357,
+    latitude: 17.493034,
+    description: "A competitive coding challenge for all programming enthusiasts.",
+    image_url: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=2072&auto=format&fit=crop",
+    is_approved: true,
+    star_count: 15,
+    created_at: "2023-02-15T10:00:00Z",
+    updated_at: "2023-02-15T10:00:00Z",
+  },
+  {
+    id: "2",
+    name: "AI Workshop",
+    category: "workshop",
+    department: "Computer Science",
+    college: "JNTUH",
+    date: "2025-03-26",
+    time: "14:00:00",
+    venue: "Seminar Hall",
+    longitude: 78.392456,
+    latitude: 17.494123,
+    description: "Learn the basics of Artificial Intelligence and Machine Learning.",
+    image_url: "https://images.unsplash.com/photo-1555255707-c07966088b7b?q=80&w=2036&auto=format&fit=crop",
+    is_approved: true,
+    star_count: 25,
+    created_at: "2023-02-16T10:00:00Z",
+    updated_at: "2023-02-16T10:00:00Z",
+  },
+  {
+    id: "3",
+    name: "Food Festival",
+    category: "food",
+    department: "Cultural Club",
+    college: "JNTUH",
+    date: "2025-03-25",
+    time: "12:00:00",
+    venue: "College Grounds",
+    longitude: 78.390123,
+    latitude: 17.491234,
+    description: "Explore various cuisines from around the world.",
+    image_url: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?q=80&w=1974&auto=format&fit=crop",
+    is_approved: true,
+    star_count: 42,
+    created_at: "2023-02-17T10:00:00Z",
+    updated_at: "2023-02-17T10:00:00Z",
+  },
+  {
+    id: "4",
+    name: "Art Exhibition",
+    category: "art",
+    department: "Fine Arts",
+    college: "JNTUH",
+    date: "2025-03-27",
+    time: "11:00:00",
+    venue: "Art Gallery",
+    longitude: 78.393456,
+    latitude: 17.495678,
+    description: "A showcase of artistic talent from students across departments.",
+    image_url: "https://images.unsplash.com/photo-1561839561-b13bcfe95249?q=80&w=2070&auto=format&fit=crop",
+    is_approved: true,
+    star_count: 18,
+    created_at: "2023-02-18T10:00:00Z",
+    updated_at: "2023-02-18T10:00:00Z",
+  },
+  {
+    id: "5",
+    name: "Tech Debate",
+    category: "competition",
+    department: "Technical Club",
+    college: "JNTUH",
+    date: "2025-03-26",
+    time: "16:00:00",
+    venue: "Main Auditorium",
+    longitude: 78.394567,
+    latitude: 17.496789,
+    description: "A debate on emerging technologies and their impact on society.",
+    image_url: "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?q=80&w=2070&auto=format&fit=crop",
+    is_approved: true,
+    star_count: 10,
+    created_at: "2023-02-19T10:00:00Z",
+    updated_at: "2023-02-19T10:00:00Z",
+  },
+  {
+    id: "6",
+    name: "Robotics Demo",
+    category: "exhibit",
+    department: "Mechanical Engineering",
+    college: "JNTUH",
+    date: "2025-03-27",
+    time: "15:00:00",
+    venue: "Robotics Lab",
+    longitude: 78.395678,
+    latitude: 17.49789,
+    description: "Watch robots in action! Students from the Robotics Club will demonstrate their latest projects.",
+    image_url: "https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?q=80&w=2070&auto=format&fit=crop",
+    is_approved: true,
+    star_count: 30,
+    created_at: "2023-02-20T10:00:00Z",
+    updated_at: "2023-02-20T10:00:00Z",
+  },
+];
 
 // Group events by date
 const groupEventsByDate = (events: Event[]) => {
@@ -27,14 +139,14 @@ const groupEventsByDate = (events: Event[]) => {
 };
 
 const Timeline = () => {
-  const { data: events = [] } = useAllEvents();
   const [groupedEvents, setGroupedEvents] = useState<Record<string, Event[]>>({});
   const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    if (events.length > 0) {
-      const grouped = groupEventsByDate(events);
+    // Simulate loading data
+    const timer = setTimeout(() => {
+      const grouped = groupEventsByDate(mockEvents);
       
       // Set all dates to expanded by default
       const expanded: Record<string, boolean> = {};
@@ -45,8 +157,10 @@ const Timeline = () => {
       setGroupedEvents(grouped);
       setExpandedDates(expanded);
       setIsLoading(false);
-    }
-  }, [events]);
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   const toggleDateExpansion = (date: string) => {
     setExpandedDates((prev) => ({
@@ -72,7 +186,7 @@ const Timeline = () => {
     return `${formattedHours}:${minutes} ${ampm}`;
   };
   
-  const getCategoryColor = (category: EventCategory) => {
+  const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
       competition: "border-festive-blue",
       workshop: "border-festive-purple",

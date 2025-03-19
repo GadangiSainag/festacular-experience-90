@@ -56,7 +56,6 @@ export interface StarredEvent {
   user_id: string;
   event_id: string;
   created_at: string;
-  events?: Event;
 }
 
 export interface FestivalUpdate {
