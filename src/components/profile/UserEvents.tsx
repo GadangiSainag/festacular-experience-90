@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { CalendarDays, MapPin, Plus, Edit, Trash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Event } from "@/types";
+import { Event, EventCategory } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,7 +44,13 @@ const UserEvents = () => {
         
         if (error) throw error;
         
-        setUserEvents(data || []);
+        // Properly cast the events with the correct category type
+        const typedEvents = (data || []).map(event => ({
+          ...event,
+          category: event.category as EventCategory
+        })) as Event[];
+        
+        setUserEvents(typedEvents);
       } catch (error) {
         console.error("Error fetching user events:", error);
         toast({

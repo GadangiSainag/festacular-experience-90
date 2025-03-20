@@ -1,4 +1,3 @@
-
 export type EventCategory = 
   | 'competition'
   | 'workshop'
@@ -9,7 +8,8 @@ export type EventCategory =
   | 'games'
   | 'food'
   | 'merch'
-  | 'art';
+  | 'art'
+  | 'sport';
 
 export type UserType = 'admin' | 'organizer' | 'attendee';
 

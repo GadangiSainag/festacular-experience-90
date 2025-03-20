@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Star, CalendarDays, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Event } from "@/types";
+import { Event, EventCategory } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -42,11 +42,12 @@ const StarredEvents = () => {
         
         if (eventsError) throw eventsError;
         
-        // Add is_starred flag to each event
-        const eventsWithStarred = eventsData.map(event => ({
+        // Add is_starred flag to each event and properly cast the category
+        const eventsWithStarred = eventsData?.map(event => ({
           ...event,
+          category: event.category as EventCategory,
           is_starred: true
-        }));
+        })) as Event[];
         
         setStarredEvents(eventsWithStarred);
       } catch (error) {

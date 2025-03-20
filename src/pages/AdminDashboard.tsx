@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { User, Event as EventType, UserType } from "@/types";
+import { User, Event as EventType, UserType, EventCategory } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,13 @@ const AdminDashboard = () => {
         
         if (error) throw error;
         
-        setPendingEvents(data || []);
+        // Properly cast the events with the correct category type
+        const typedEvents = (data || []).map(event => ({
+          ...event,
+          category: event.category as EventCategory
+        })) as EventType[];
+        
+        setPendingEvents(typedEvents);
       } catch (error) {
         console.error("Error fetching pending events:", error);
         toast({

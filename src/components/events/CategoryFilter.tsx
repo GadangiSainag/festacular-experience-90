@@ -25,6 +25,7 @@ const CategoryFilter = ({ selectedCategory, onChange }: CategoryFilterProps) => 
     { value: "food", label: "Food", color: "bg-festive-red" },
     { value: "merch", label: "Merchandise", color: "bg-festive-yellow" },
     { value: "art", label: "Art", color: "bg-festive-purple" },
+    { value: "sport", label: "Sports", color: "bg-festive-blue" },
   ];
 
   useEffect(() => {
