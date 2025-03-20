@@ -6,7 +6,7 @@ export type EventCategory =
   | 'exhibit'
   | 'performance'
   | 'lecture'
-  | 'game'
+  | 'games'
   | 'food'
   | 'merch'
   | 'art';
