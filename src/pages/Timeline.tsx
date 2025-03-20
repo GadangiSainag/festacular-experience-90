@@ -3,14 +3,14 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronRight, Clock, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Event } from "@/types";
+import { Event, EventCategory } from "@/types";
 
 // Mock data for the prototype
-const mockEvents = [
+const mockEvents: Event[] = [
   {
     id: "1",
     name: "Coding Challenge",
-    category: "competition",
+    category: "competition" as EventCategory,
     department: "Computer Science",
     college: "JNTUH",
     date: "2025-03-25",
@@ -28,7 +28,7 @@ const mockEvents = [
   {
     id: "2",
     name: "AI Workshop",
-    category: "workshop",
+    category: "workshop" as EventCategory,
     department: "Computer Science",
     college: "JNTUH",
     date: "2025-03-26",
@@ -46,7 +46,7 @@ const mockEvents = [
   {
     id: "3",
     name: "Food Festival",
-    category: "food",
+    category: "food" as EventCategory,
     department: "Cultural Club",
     college: "JNTUH",
     date: "2025-03-25",
@@ -64,7 +64,7 @@ const mockEvents = [
   {
     id: "4",
     name: "Art Exhibition",
-    category: "art",
+    category: "art" as EventCategory,
     department: "Fine Arts",
     college: "JNTUH",
     date: "2025-03-27",
@@ -82,7 +82,7 @@ const mockEvents = [
   {
     id: "5",
     name: "Tech Debate",
-    category: "competition",
+    category: "competition" as EventCategory,
     department: "Technical Club",
     college: "JNTUH",
     date: "2025-03-26",
@@ -100,7 +100,7 @@ const mockEvents = [
   {
     id: "6",
     name: "Robotics Demo",
-    category: "exhibit",
+    category: "exhibit" as EventCategory,
     department: "Mechanical Engineering",
     college: "JNTUH",
     date: "2025-03-27",

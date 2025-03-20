@@ -2,14 +2,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, X, Filter, MapPin } from "lucide-react";
-import { Event } from "@/types";
+import { Event, EventCategory } from "@/types";
 
 // Mock data for the prototype
-const mockEvents = [
+const mockEvents: Event[] = [
   {
     id: "1",
     name: "Coding Challenge",
-    category: "competition",
+    category: "competition" as EventCategory,
     department: "Computer Science",
     college: "JNTUH",
     date: "2025-03-25",
@@ -27,7 +27,7 @@ const mockEvents = [
   {
     id: "2",
     name: "AI Workshop",
-    category: "workshop",
+    category: "workshop" as EventCategory,
     department: "Computer Science",
     college: "JNTUH",
     date: "2025-03-26",

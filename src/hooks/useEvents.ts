@@ -87,7 +87,13 @@ export const useEvent = (eventId: string | undefined) => {
         
         if (error) throw error;
         
-        if (!user) return event;
+        // Ensure the event category is cast to EventCategory
+        const typedEvent = {
+          ...event,
+          category: event.category as EventCategory
+        };
+        
+        if (!user) return typedEvent;
         
         // Check if event is starred by current user
         const { data: starredData, error: starredError } = await supabase
@@ -100,7 +106,7 @@ export const useEvent = (eventId: string | undefined) => {
         if (starredError) throw starredError;
         
         return {
-          ...event,
+          ...typedEvent,
           is_starred: !!starredData
         };
       } catch (error) {

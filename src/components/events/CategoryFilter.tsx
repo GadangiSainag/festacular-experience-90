@@ -21,7 +21,7 @@ const CategoryFilter = ({ selectedCategory, onChange }: CategoryFilterProps) => 
     { value: "exhibit", label: "Exhibits", color: "bg-festive-teal" },
     { value: "performance", label: "Performances", color: "bg-festive-pink" },
     { value: "lecture", label: "Lectures", color: "bg-festive-indigo" },
-    { value: "game", label: "Games", color: "bg-festive-green" },
+    { value: "games", label: "Games", color: "bg-festive-green" },
     { value: "food", label: "Food", color: "bg-festive-red" },
     { value: "merch", label: "Merchandise", color: "bg-festive-yellow" },
     { value: "art", label: "Art", color: "bg-festive-purple" },

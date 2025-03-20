@@ -13,7 +13,7 @@ const mockEvents: Event[] = [
   {
     id: "1",
     name: "Coding Challenge",
-    category: "competition",
+    category: "competition" as EventCategory,
     department: "Computer Science",
     college: "JNTUH",
     date: "2025-03-25",
@@ -31,7 +31,7 @@ const mockEvents: Event[] = [
   {
     id: "2",
     name: "AI Workshop",
-    category: "workshop",
+    category: "workshop" as EventCategory,
     department: "Computer Science",
     college: "JNTUH",
     date: "2025-03-26",
@@ -49,7 +49,7 @@ const mockEvents: Event[] = [
   {
     id: "3",
     name: "Food Festival",
-    category: "food",
+    category: "food" as EventCategory,
     department: "Cultural Club",
     college: "JNTUH",
     date: "2025-03-27",
@@ -67,7 +67,7 @@ const mockEvents: Event[] = [
   {
     id: "4",
     name: "Art Exhibition",
-    category: "art",
+    category: "art" as EventCategory,
     department: "Fine Arts",
     college: "JNTUH",
     date: "2025-03-25",
@@ -85,7 +85,7 @@ const mockEvents: Event[] = [
   {
     id: "5",
     name: "Tech Debate",
-    category: "competition",
+    category: "competition" as EventCategory,
     department: "Technical Club",
     college: "JNTUH",
     date: "2025-03-26",
@@ -103,7 +103,7 @@ const mockEvents: Event[] = [
   {
     id: "6",
     name: "Robotics Demo",
-    category: "exhibit",
+    category: "exhibit" as EventCategory,
     department: "Mechanical Engineering",
     college: "JNTUH",
     date: "2025-03-27",

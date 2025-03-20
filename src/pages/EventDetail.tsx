@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEvent } from "@/hooks/useEvents";
 import EventDetailView from "@/components/events/EventDetailView";
+import { Event, EventCategory } from "@/types";
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -40,7 +41,7 @@ const EventDetail = () => {
             </p>
           </div>
         ) : event ? (
-          <EventDetailView event={event} />
+          <EventDetailView event={event as Event} />
         ) : null}
       </motion.div>
     </div>
