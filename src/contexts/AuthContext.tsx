@@ -4,9 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types";
 import { toast } from "@/hooks/use-toast";
+import { Session } from "@supabase/supabase-js";
 
 type AuthContextType = {
   user: User | null;
+  session: Session | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, userData: Partial<User>) => Promise<void>;
@@ -19,60 +21,75 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      setIsLoading(true);
-      try {
-        // Get current auth user
-        const { data: authData } = await supabase.auth.getUser();
-        
-        if (authData.user) {
-          // If we have an auth user, get their profile data
+    // Set up auth state change listener FIRST to catch any auth events during initialization
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log("Auth state changed:", event, newSession?.user?.id);
+      setSession(newSession);
+      
+      if (event === "SIGNED_IN" && newSession?.user) {
+        // Fetch user profile when signed in
+        try {
           const { data, error } = await supabase
             .from("users")
             .select("*")
-            .eq("auth_id", authData.user.id)
+            .eq("auth_id", newSession.user.id)
+            .single();
+          
+          if (!error && data) {
+            console.log("User profile fetched:", data);
+            setUser(data);
+          } else {
+            console.error("Error fetching user profile on auth change:", error);
+            setUser(null);
+          }
+        } catch (err) {
+          console.error("Error in auth state change handler:", err);
+        }
+      } else if (event === "SIGNED_OUT") {
+        console.log("User signed out");
+        setUser(null);
+      }
+    });
+
+    // THEN check for existing session on page load
+    const initializeAuth = async () => {
+      setIsLoading(true);
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        console.log("Initial session check:", sessionData.session?.user?.id);
+        setSession(sessionData.session);
+        
+        if (sessionData.session?.user) {
+          const { data: userData, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("auth_id", sessionData.session.user.id)
             .single();
           
           if (error) {
-            console.error("Error fetching user profile:", error);
+            console.error("Error fetching user profile on init:", error);
             setUser(null);
           } else {
-            setUser(data);
+            console.log("Initial user profile:", userData);
+            setUser(userData);
           }
         } else {
           setUser(null);
         }
       } catch (error) {
-        console.error("Auth error:", error);
+        console.error("Auth initialization error:", error);
         setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchUser();
-
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session?.user) {
-        // Fetch user profile when signed in
-        const { data, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("auth_id", session.user.id)
-          .single();
-        
-        if (!error) {
-          setUser(data);
-        }
-      } else if (event === "SIGNED_OUT") {
-        setUser(null);
-      }
-    });
+    initializeAuth();
 
     return () => {
       subscription.unsubscribe();
@@ -171,6 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     
     try {
+      console.log("Updating profile with data:", data);
       const { error } = await supabase
         .from("users")
         .update(data)
@@ -227,6 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider 
       value={{ 
         user, 
+        session,
         isLoading, 
         signIn, 
         signUp, 

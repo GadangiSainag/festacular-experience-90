@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,11 +18,14 @@ const UpdatesNotification = () => {
   const [eventUpdates, setEventUpdates] = useState<EventUpdate[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const festivalChannelRef = useRef<any>(null);
+  const eventChannelRef = useRef<any>(null);
 
   // Fetch initial updates
   useEffect(() => {
     const fetchUpdates = async () => {
       try {
+        console.log("Fetching initial updates");
         // Fetch festival updates
         const { data: festivalData, error: festivalError } = await supabase
           .from("festival_updates")
@@ -41,71 +44,93 @@ const UpdatesNotification = () => {
         
         if (eventError) throw eventError;
         
+        console.log("Initial festival updates:", festivalData);
+        console.log("Initial event updates:", eventData);
+        
         setFestivalUpdates(festivalData || []);
         setEventUpdates(eventData || []);
         
         // Calculate unread count (this would typically use a "last_read" timestamp in a real app)
         // For this example, we'll just show the total as unread
-        setUnreadCount((festivalData?.length || 0) + (eventData?.length || 0));
+        const totalUnread = (festivalData?.length || 0) + (eventData?.length || 0);
+        setUnreadCount(totalUnread);
+        console.log("Setting initial unread count:", totalUnread);
       } catch (error) {
         console.error("Error fetching updates:", error);
       }
     };
     
     fetchUpdates();
-  }, []);
 
-  // Set up real-time listeners
-  useEffect(() => {
-    // Listen for new festival updates
-    const festivalChannel = supabase
-      .channel('festival_updates_changes')
-      .on(
-        'postgres_changes',
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'festival_updates' 
-        },
-        (payload) => {
-          const newUpdate = payload.new as FestivalUpdate;
-          setFestivalUpdates(prev => [newUpdate, ...prev]);
-          setUnreadCount(prev => prev + 1);
-          
-          toast({
-            title: "New Festival Update",
-            description: newUpdate.message.substring(0, 100) + (newUpdate.message.length > 100 ? '...' : ''),
-          });
-        }
-      )
-      .subscribe();
-    
-    // Listen for new event updates
-    const eventChannel = supabase
-      .channel('event_updates_changes')
-      .on(
-        'postgres_changes',
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'event_updates' 
-        },
-        (payload) => {
-          const newUpdate = payload.new as EventUpdate;
-          setEventUpdates(prev => [newUpdate, ...prev]);
-          setUnreadCount(prev => prev + 1);
-          
-          toast({
-            title: "New Event Update",
-            description: newUpdate.message.substring(0, 100) + (newUpdate.message.length > 100 ? '...' : ''),
-          });
-        }
-      )
-      .subscribe();
+    // Set up real-time listeners
+    const setupRealtime = async () => {
+      try {
+        // Listen for new festival updates
+        const festivalChannel = supabase
+          .channel('festival_updates_changes')
+          .on(
+            'postgres_changes',
+            { 
+              event: 'INSERT', 
+              schema: 'public', 
+              table: 'festival_updates' 
+            },
+            (payload) => {
+              console.log("New festival update received:", payload);
+              const newUpdate = payload.new as FestivalUpdate;
+              setFestivalUpdates(prev => [newUpdate, ...prev]);
+              setUnreadCount(prev => prev + 1);
+              
+              toast({
+                title: "New Festival Update",
+                description: newUpdate.message.substring(0, 100) + (newUpdate.message.length > 100 ? '...' : ''),
+              });
+            }
+          )
+          .subscribe();
+        
+        festivalChannelRef.current = festivalChannel;
+        
+        // Listen for new event updates
+        const eventChannel = supabase
+          .channel('event_updates_changes')
+          .on(
+            'postgres_changes',
+            { 
+              event: 'INSERT', 
+              schema: 'public', 
+              table: 'event_updates' 
+            },
+            (payload) => {
+              console.log("New event update received:", payload);
+              const newUpdate = payload.new as EventUpdate;
+              setEventUpdates(prev => [newUpdate, ...prev]);
+              setUnreadCount(prev => prev + 1);
+              
+              toast({
+                title: "New Event Update",
+                description: newUpdate.message.substring(0, 100) + (newUpdate.message.length > 100 ? '...' : ''),
+              });
+            }
+          )
+          .subscribe();
+        
+        eventChannelRef.current = eventChannel;
+      } catch (error) {
+        console.error("Error setting up realtime:", error);
+      }
+    };
+
+    setupRealtime();
     
     return () => {
-      supabase.removeChannel(festivalChannel);
-      supabase.removeChannel(eventChannel);
+      // Clean up subscriptions
+      if (festivalChannelRef.current) {
+        supabase.removeChannel(festivalChannelRef.current);
+      }
+      if (eventChannelRef.current) {
+        supabase.removeChannel(eventChannelRef.current);
+      }
     };
   }, []);
 

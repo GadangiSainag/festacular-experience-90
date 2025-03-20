@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,13 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 const FestivalUpdates = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [updates, setUpdates] = useState<FestivalUpdate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newUpdate, setNewUpdate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
     const fetchUpdates = async () => {
@@ -27,6 +30,7 @@ const FestivalUpdates = () => {
         
         if (error) throw error;
         
+        console.log("Fetched festival updates:", data);
         setUpdates(data || []);
       } catch (error) {
         console.error("Error fetching festival updates:", error);
@@ -42,33 +46,58 @@ const FestivalUpdates = () => {
     
     fetchUpdates();
     
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel('festival_updates_changes')
-      .on(
-        'postgres_changes',
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'festival_updates' 
-        },
-        async (payload) => {
-          // Fetch the complete update with admin details
-          const { data, error } = await supabase
-            .from("festival_updates")
-            .select("*, admin:admin_id(name)")
-            .eq("id", payload.new.id)
-            .single();
-          
-          if (!error && data) {
-            setUpdates(prev => [data, ...prev]);
-          }
-        }
-      )
-      .subscribe();
+    // Enable realtime on the festival_updates table
+    const enableRealtime = async () => {
+      try {
+        // Subscribe to real-time updates
+        const channel = supabase
+          .channel('festival_updates_channel')
+          .on(
+            'postgres_changes',
+            { 
+              event: 'INSERT', 
+              schema: 'public', 
+              table: 'festival_updates' 
+            },
+            async (payload) => {
+              console.log("New festival update received:", payload);
+              // Fetch the complete update with admin details
+              const { data, error } = await supabase
+                .from("festival_updates")
+                .select("*, admin:admin_id(name)")
+                .eq("id", payload.new.id)
+                .single();
+              
+              if (!error && data) {
+                console.log("Complete festival update data:", data);
+                setUpdates(prev => [data, ...prev]);
+                
+                // Show toast notification for new updates
+                toast({
+                  title: "New Festival Update",
+                  description: data.message.substring(0, 100) + (data.message.length > 100 ? '...' : ''),
+                });
+              }
+            }
+          )
+          .subscribe((status: any) => {
+            console.log("Subscription status:", status);
+          });
+        
+        channelRef.current = channel;
+      } catch (error) {
+        console.error("Error setting up realtime:", error);
+      }
+    };
+    
+    enableRealtime();
     
     return () => {
-      supabase.removeChannel(channel);
+      // Cleanup subscription on unmount
+      if (channelRef.current) {
+        console.log("Removing channel subscription");
+        supabase.removeChannel(channelRef.current);
+      }
     };
   }, []);
 
@@ -111,6 +140,9 @@ const FestivalUpdates = () => {
         title: "Update Posted",
         description: "Your festival update has been posted successfully.",
       });
+      
+      // Force a refetch of updates
+      queryClient.invalidateQueries({ queryKey: ['festival_updates'] });
     } catch (error) {
       console.error("Error posting festival update:", error);
       toast({

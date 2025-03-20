@@ -17,6 +17,7 @@ export const categoryFilterOptions: CategoryFilterOption[] = [
   { value: "food", label: "Food", color: "#f59e0b" },
   { value: "merch", label: "Merchandise", color: "#14b8a6" },
   { value: "art", label: "Art", color: "#ec4899" },
+  { value: "sport", label: "Sport", color: "#3b82f6" },
 ];
 
 // Get color for a category
@@ -33,6 +34,7 @@ export const useAllEvents = () => {
     queryKey: ['events'],
     queryFn: async () => {
       try {
+        console.log("Fetching all events");
         // Get all approved events
         const { data: events, error } = await supabase
           .from('events')
@@ -42,7 +44,13 @@ export const useAllEvents = () => {
         
         if (error) throw error;
         
-        if (!user) return events || [];
+        console.log("Fetched events:", events);
+        
+        if (!user) return (events || []).map(event => ({
+          ...event,
+          category: event.category as EventCategory,
+          is_starred: false
+        }));
         
         // If user is logged in, get their starred events
         const { data: starredData, error: starredError } = await supabase
@@ -54,10 +62,11 @@ export const useAllEvents = () => {
         
         // Add is_starred flag to each event
         const starredIds = starredData?.map(item => item.event_id) || [];
-        const eventsWithStarred = events?.map(event => ({
+        const eventsWithStarred = (events || []).map(event => ({
           ...event,
+          category: event.category as EventCategory,
           is_starred: starredIds.includes(event.id)
-        })) || [];
+        }));
         
         return eventsWithStarred;
       } catch (error) {
@@ -65,7 +74,7 @@ export const useAllEvents = () => {
         throw error;
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 60 * 1000, // 1 minute
   });
 };
 
@@ -79,6 +88,7 @@ export const useEvent = (eventId: string | undefined) => {
       if (!eventId) throw new Error('Event ID is required');
       
       try {
+        console.log("Fetching event with ID:", eventId);
         const { data: event, error } = await supabase
           .from('events')
           .select('*')
@@ -86,6 +96,8 @@ export const useEvent = (eventId: string | undefined) => {
           .single();
         
         if (error) throw error;
+        
+        console.log("Fetched event:", event);
         
         // Ensure the event category is cast to EventCategory
         const typedEvent = {
@@ -115,7 +127,7 @@ export const useEvent = (eventId: string | undefined) => {
       }
     },
     enabled: !!eventId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 60 * 1000, // 1 minute
   });
 };
 
@@ -184,6 +196,7 @@ export const useStarredEvents = () => {
       if (!user) return [];
       
       try {
+        console.log("Fetching starred events for user:", user.id);
         // Get starred events IDs for the current user
         const { data: starredData, error: starredError } = await supabase
           .from('starred_events')
@@ -203,9 +216,12 @@ export const useStarredEvents = () => {
         
         if (eventsError) throw eventsError;
         
+        console.log("Fetched starred events:", eventsData);
+        
         // Add is_starred flag
         return (eventsData || []).map(event => ({
           ...event,
+          category: event.category as EventCategory,
           is_starred: true
         }));
       } catch (error) {
@@ -214,6 +230,6 @@ export const useStarredEvents = () => {
       }
     },
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 60 * 1000, // 1 minute
   });
 };

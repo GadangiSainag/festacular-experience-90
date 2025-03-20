@@ -20,11 +20,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StarredEvents from "@/components/profile/StarredEvents";
 import UserEvents from "@/components/profile/UserEvents";
+import { toast } from "@/hooks/use-toast";
 
 const Profile = () => {
   const { user, updateProfile, requestRoleElevation } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm({
     defaultValues: {
       name: user?.name || "",
       phone: user?.phone || "",
@@ -33,6 +34,21 @@ const Profile = () => {
       course: user?.course || "",
       admission_year: user?.admission_year || undefined,
       passout_year: user?.passout_year || undefined,
+    }
+  });
+
+  // Reset form when user changes
+  useState(() => {
+    if (user) {
+      reset({
+        name: user.name || "",
+        phone: user.phone || "",
+        college: user.college || "",
+        department: user.department || "",
+        course: user.course || "",
+        admission_year: user.admission_year || undefined,
+        passout_year: user.passout_year || undefined,
+      });
     }
   });
 
@@ -45,8 +61,26 @@ const Profile = () => {
   }
 
   const onSubmit = async (data: any) => {
-    await updateProfile(data);
-    setIsEditing(false);
+    try {
+      // Convert string years to numbers if they exist
+      if (data.admission_year) {
+        data.admission_year = Number(data.admission_year);
+      }
+      if (data.passout_year) {
+        data.passout_year = Number(data.passout_year);
+      }
+      
+      console.log("Submitting profile update:", data);
+      await updateProfile(data);
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast({
+        title: "Update failed",
+        description: "There was an error updating your profile. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRoleRequest = async () => {
@@ -85,7 +119,18 @@ const Profile = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => setIsEditing(false)}
+                  onClick={() => {
+                    setIsEditing(false);
+                    reset({
+                      name: user.name || "",
+                      phone: user.phone || "",
+                      college: user.college || "",
+                      department: user.department || "",
+                      course: user.course || "",
+                      admission_year: user.admission_year || undefined,
+                      passout_year: user.passout_year || undefined,
+                    });
+                  }}
                 >
                   <X className="mr-2 h-4 w-4" />
                   Cancel
