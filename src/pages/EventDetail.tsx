@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEvent } from "@/hooks/useEvents";
 import EventDetailView from "@/components/events/EventDetailView";
-import { Event, EventCategory } from "@/types";
+import { Event } from "@/types";
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
