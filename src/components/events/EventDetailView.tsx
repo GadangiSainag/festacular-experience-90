@@ -3,18 +3,26 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import { Calendar, Clock, MapPin, Edit, Star, SendHorizontal, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, MapPin, Edit, Star, SendHorizontal, RefreshCw, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Event, EventCategory, EventUpdate } from '@/types';
+import { Event, EventCategory, EventUpdate, User as UserType } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import EventForm from './EventForm';
+import SocialShare from '@/components/common/SocialShare';
+import UserProfileView from '@/components/profile/UserProfileView';
 
 interface EventDetailViewProps {
   event: Event;
@@ -37,6 +45,8 @@ const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated
   const [eventUpdates, setEventUpdates] = useState<EventUpdateWithUserName[]>([]);
   const [loadingUpdates, setLoadingUpdates] = useState(true);
   const [refreshingUpdates, setRefreshingUpdates] = useState(false);
+  const [organizer, setOrganizer] = useState<UserType | null>(null);
+  const [showOrganizerDialog, setShowOrganizerDialog] = useState(false);
 
   // Check if event is starred by current user
   useEffect(() => {
@@ -61,6 +71,29 @@ const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated
     
     checkIfStarred();
   }, [user, event.id]);
+  
+  // Fetch event organizer
+  useEffect(() => {
+    const fetchOrganizer = async () => {
+      if (!event.organizer_id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', event.organizer_id)
+          .single();
+          
+        if (!error && data) {
+          setOrganizer(data);
+        }
+      } catch (error) {
+        console.error('Error fetching organizer:', error);
+      }
+    };
+    
+    fetchOrganizer();
+  }, [event.organizer_id]);
   
   // Fetch event updates
   const fetchEventUpdates = async () => {
@@ -238,6 +271,9 @@ const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated
   // Check if user is allowed to edit (either the organizer or an admin)
   const canEditEvent = user && (user.id === event.organizer_id || user.type === 'admin');
 
+  // Get current URL for sharing
+  const currentUrl = window.location.href;
+
   if (isEditing) {
     return (
       <div>
@@ -273,6 +309,12 @@ const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated
             </div>
             
             <div className="flex gap-2">
+              <SocialShare 
+                url={currentUrl}
+                title={`${event.name} - NextFest Event`}
+                description={event.description || `Join us for ${event.name} at ${event.venue} on ${format(new Date(event.date), 'MMM dd, yyyy')}`}
+              />
+            
               <Button
                 variant="outline"
                 size="sm"
@@ -313,6 +355,16 @@ const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated
               <MapPin className="h-4 w-4 mr-1" />
               <span>{event.venue}</span>
             </div>
+            {organizer && (
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-muted-foreground" 
+                onClick={() => setShowOrganizerDialog(true)}
+              >
+                <User className="h-4 w-4 mr-1" />
+                <span>Organized by {organizer.name}</span>
+              </Button>
+            )}
           </div>
           
           <p className="text-foreground whitespace-pre-line">{event.description}</p>
@@ -394,6 +446,15 @@ const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated
           )}
         </div>
       </div>
+
+      <Dialog open={showOrganizerDialog} onOpenChange={setShowOrganizerDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Event Organizer</DialogTitle>
+          </DialogHeader>
+          {organizer && <UserProfileView user={organizer} showDetailedInfo={user?.type === 'admin' || user?.type === 'organizer'} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

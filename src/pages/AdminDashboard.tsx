@@ -22,7 +22,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import UserProfileView from "@/components/profile/UserProfileView";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -30,6 +38,9 @@ const AdminDashboard = () => {
   const [pendingEvents, setPendingEvents] = useState<EventType[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [eventOrganizers, setEventOrganizers] = useState<Record<string, User>>({});
 
   useEffect(() => {
     const fetchRoleRequests = async () => {
@@ -72,6 +83,23 @@ const AdminDashboard = () => {
         })) as EventType[];
         
         setPendingEvents(typedEvents);
+        
+        // Fetch organizers for these events
+        const organizerIds = [...new Set(typedEvents.map(event => event.organizer_id).filter(Boolean))];
+        if (organizerIds.length > 0) {
+          const { data: organizers, error: organizerError } = await supabase
+            .from("users")
+            .select("*")
+            .in("id", organizerIds);
+            
+          if (!organizerError && organizers) {
+            const organizerMap: Record<string, User> = {};
+            organizers.forEach(organizer => {
+              organizerMap[organizer.id] = organizer;
+            });
+            setEventOrganizers(organizerMap);
+          }
+        }
       } catch (error) {
         console.error("Error fetching pending events:", error);
         toast({
@@ -160,6 +188,11 @@ const AdminDashboard = () => {
     }
   };
 
+  const viewUserProfile = (user: User) => {
+    setSelectedUser(user);
+    setShowUserDialog(true);
+  };
+
   if (user?.type !== 'admin') {
     return (
       <div className="flex min-h-[calc(100vh-16rem)] items-center justify-center">
@@ -216,7 +249,11 @@ const AdminDashboard = () => {
                     <TableBody>
                       {roleRequests.map((request) => (
                         <TableRow key={request.id}>
-                          <TableCell className="font-medium">{request.name}</TableCell>
+                          <TableCell className="font-medium">
+                            <Button variant="link" className="p-0 h-auto" onClick={() => viewUserProfile(request)}>
+                              {request.name}
+                            </Button>
+                          </TableCell>
                           <TableCell>{request.email}</TableCell>
                           <TableCell>{request.college || "—"}</TableCell>
                           <TableCell>{request.department || "—"}</TableCell>
@@ -269,7 +306,7 @@ const AdminDashboard = () => {
                         <TableHead>Event Name</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Date & Time</TableHead>
-                        <TableHead>Venue</TableHead>
+                        <TableHead>Organizer</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -285,7 +322,17 @@ const AdminDashboard = () => {
                           <TableCell>
                             {new Date(event.date).toLocaleDateString()} at {event.time}
                           </TableCell>
-                          <TableCell>{event.venue}</TableCell>
+                          <TableCell>
+                            {event.organizer_id && eventOrganizers[event.organizer_id] ? (
+                              <Button 
+                                variant="link" 
+                                className="p-0 h-auto" 
+                                onClick={() => viewUserProfile(eventOrganizers[event.organizer_id])}
+                              >
+                                {eventOrganizers[event.organizer_id].name}
+                              </Button>
+                            ) : "—"}
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end space-x-2">
                               <Button
@@ -314,6 +361,20 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </motion.div>
+      
+      <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>User Profile</DialogTitle>
+            <DialogDescription>
+              Full details for {selectedUser?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <UserProfileView user={selectedUser} showDetailedInfo={true} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

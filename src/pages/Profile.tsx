@@ -1,8 +1,8 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { motion } from "framer-motion";
-import { Edit2, Save, X } from "lucide-react";
+import { Edit2, Save, X, User, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,16 +16,59 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import StarredEvents from "@/components/profile/StarredEvents";
 import UserEvents from "@/components/profile/UserEvents";
 import { toast } from "@/hooks/use-toast";
 
+type ProfileFormValues = {
+  name: string;
+  phone: string;
+  college: string;
+  department: string;
+  course: string;
+  admission_year: number | undefined;
+  passout_year: number | undefined;
+};
+
 const Profile = () => {
   const { user, updateProfile, requestRoleElevation } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const { register, handleSubmit, formState: { errors }, reset } = useForm({
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [confirmRoleRequest, setConfirmRoleRequest] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const { register, handleSubmit, formState: { errors }, reset, getValues } = useForm<ProfileFormValues>({
+    defaultValues: {
+      name: user?.name || "",
+      phone: user?.phone || "",
+      college: user?.college || "",
+      department: user?.department || "",
+      course: user?.course || "",
+      admission_year: user?.admission_year || undefined,
+      passout_year: user?.passout_year || undefined,
+    }
+  });
+
+  // Form for role elevation dialog
+  const roleForm = useForm<ProfileFormValues>({
     defaultValues: {
       name: user?.name || "",
       phone: user?.phone || "",
@@ -38,7 +81,7 @@ const Profile = () => {
   });
 
   // Reset form when user changes
-  useState(() => {
+  useEffect(() => {
     if (user) {
       reset({
         name: user.name || "",
@@ -49,8 +92,20 @@ const Profile = () => {
         admission_year: user.admission_year || undefined,
         passout_year: user.passout_year || undefined,
       });
+      
+      roleForm.reset({
+        name: user.name || "",
+        phone: user.phone || "",
+        college: user.college || "",
+        department: user.department || "",
+        course: user.course || "",
+        admission_year: user.admission_year || undefined,
+        passout_year: user.passout_year || undefined,
+      });
+      
+      setPhoneNumber(user.phone || "");
     }
-  });
+  }, [user, reset, roleForm]);
 
   if (!user) {
     return (
@@ -60,7 +115,7 @@ const Profile = () => {
     );
   }
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: ProfileFormValues) => {
     try {
       // Convert string years to numbers if they exist
       if (data.admission_year) {
@@ -83,8 +138,51 @@ const Profile = () => {
     }
   };
 
-  const handleRoleRequest = async () => {
+  const handleRoleRequest = () => {
+    // Check if all required fields are filled
+    const hasEmptyRequiredFields = !user.name || !user.phone || !user.college || !user.department || !user.course;
+    
+    if (hasEmptyRequiredFields) {
+      setShowRoleDialog(true);
+    } else {
+      setConfirmRoleRequest(true);
+    }
+  };
+  
+  const submitRoleRequest = async () => {
     await requestRoleElevation();
+    setConfirmRoleRequest(false);
+  };
+  
+  const submitRoleProfile = async (data: ProfileFormValues) => {
+    try {
+      // Convert string years to numbers if they exist
+      if (data.admission_year) {
+        data.admission_year = Number(data.admission_year);
+      }
+      if (data.passout_year) {
+        data.passout_year = Number(data.passout_year);
+      }
+      
+      // Update the profile first
+      await updateProfile(data);
+      
+      // Then request role elevation
+      await requestRoleElevation();
+      
+      setShowRoleDialog(false);
+      toast({
+        title: "Profile updated and role requested",
+        description: "Your profile has been updated and your request for organizer role has been submitted.",
+      });
+    } catch (error) {
+      console.error("Error updating profile for role request:", error);
+      toast({
+        title: "Update failed",
+        description: "There was an error updating your profile. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getRoleBadgeColor = (type: UserType) => {
@@ -330,6 +428,181 @@ const Profile = () => {
           )}
         </Tabs>
       </motion.div>
+      
+      {/* Dialog for completing profile for role elevation */}
+      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete Your Profile</DialogTitle>
+            <DialogDescription>
+              To request an organizer role, please complete your profile information.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...roleForm}>
+            <form onSubmit={roleForm.handleSubmit(submitRoleProfile)} className="space-y-4">
+              <FormField
+                control={roleForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your full name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+                rules={{ required: "Name is required" }}
+              />
+              
+              <FormField
+                control={roleForm.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your phone number" type="tel" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+                rules={{ required: "Phone number is required" }}
+              />
+              
+              <FormField
+                control={roleForm.control}
+                name="college"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>College/University</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your college or university" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+                rules={{ required: "College/University is required" }}
+              />
+              
+              <FormField
+                control={roleForm.control}
+                name="department"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Department</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your department" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+                rules={{ required: "Department is required" }}
+              />
+              
+              <FormField
+                control={roleForm.control}
+                name="course"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Course</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your course" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+                rules={{ required: "Course is required" }}
+              />
+              
+              <DialogFooter>
+                <Button type="submit">Submit Request</Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog for confirming role elevation */}
+      <Dialog open={confirmRoleRequest} onOpenChange={setConfirmRoleRequest}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Role Request</DialogTitle>
+            <DialogDescription>
+              Please confirm your profile information before submitting your request to become an organizer.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium">Name</p>
+                <p className="text-sm">{user.name}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Email</p>
+                <p className="text-sm">{user.email}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Phone</p>
+                <p className="text-sm">{user.phone}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">College</p>
+                <p className="text-sm">{user.college}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Department</p>
+                <p className="text-sm">{user.department}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Course</p>
+                <p className="text-sm">{user.course}</p>
+              </div>
+            </div>
+            
+            {/* Update phone option */}
+            <div className="pt-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="updatePhone">Update Phone Number</Label>
+                <Input 
+                  id="updatePhone" 
+                  value={phoneNumber} 
+                  onChange={(e) => setPhoneNumber(e.target.value)} 
+                  className="flex-1"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    if (phoneNumber !== user.phone) {
+                      await updateProfile({ phone: phoneNumber });
+                      toast({
+                        title: "Phone number updated",
+                        description: "Your phone number has been updated successfully.",
+                      });
+                    }
+                  }}
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  Update
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmRoleRequest(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitRoleRequest}>
+              <User className="h-4 w-4 mr-2" />
+              Request Organizer Role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
