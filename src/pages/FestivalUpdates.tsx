@@ -1,258 +1,214 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { Send, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { FestivalUpdate } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Send } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+
+interface Update {
+  id: string;
+  message: string;
+  admin_id: string;
+  created_at: string;
+  admin_name?: string;
+}
 
 const FestivalUpdates = () => {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [updates, setUpdates] = useState<FestivalUpdate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [newUpdate, setNewUpdate] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const channelRef = useRef<any>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
+  const { toast } = useToast();
+  const [updates, setUpdates] = useState<Update[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const fetchUpdates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("festival_updates")
+        .select(`
+          *,
+          users:admin_id (name)
+        `)
+        .order("created_at", { ascending: false });
+        
+      if (error) throw error;
+      
+      const formattedUpdates = data.map(update => ({
+        ...update,
+        admin_name: update.users?.name || "Unknown Admin"
+      }));
+      
+      setUpdates(formattedUpdates);
+    } catch (error) {
+      console.error("Error fetching festival updates:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load festival updates.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   useEffect(() => {
-    const fetchUpdates = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from("festival_updates")
-          .select("*, admin:admin_id(name)")
-          .order("created_at", { ascending: false });
-        
-        if (error) throw error;
-        
-        console.log("Fetched festival updates:", data);
-        setUpdates(data || []);
-      } catch (error) {
-        console.error("Error fetching festival updates:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load festival updates. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
     fetchUpdates();
     
-    // Enable realtime on the festival_updates table
-    const enableRealtime = async () => {
-      try {
-        // Subscribe to real-time updates
-        const channel = supabase
-          .channel('festival_updates_channel')
-          .on(
-            'postgres_changes',
-            { 
-              event: 'INSERT', 
-              schema: 'public', 
-              table: 'festival_updates' 
-            },
-            async (payload) => {
-              console.log("New festival update received:", payload);
-              // Fetch the complete update with admin details
-              const { data, error } = await supabase
-                .from("festival_updates")
-                .select("*, admin:admin_id(name)")
-                .eq("id", payload.new.id)
-                .single();
-              
-              if (!error && data) {
-                console.log("Complete festival update data:", data);
-                setUpdates(prev => [data, ...prev]);
-                
-                // Show toast notification for new updates
-                toast({
-                  title: "New Festival Update",
-                  description: data.message.substring(0, 100) + (data.message.length > 100 ? '...' : ''),
-                });
-                
-                // Scroll to bottom
-                scrollToBottom();
-              }
-            }
-          )
-          .subscribe((status: any) => {
-            console.log("Subscription status:", status);
-          });
-        
-        channelRef.current = channel;
-      } catch (error) {
-        console.error("Error setting up realtime:", error);
-      }
-    };
-    
-    enableRealtime();
-    
+    // Set up real-time subscription
+    const subscription = supabase
+      .channel("festival-updates-changes")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "festival_updates" },
+        async (payload) => {
+          console.log("New festival update:", payload);
+          
+          // Fetch the user name for the new update
+          const { data: userData } = await supabase
+            .from("users")
+            .select("name")
+            .eq("id", payload.new.admin_id)
+            .single();
+            
+          const newUpdate = {
+            ...payload.new,
+            admin_name: userData?.name || "Unknown Admin"
+          };
+          
+          setUpdates(prev => [newUpdate, ...prev]);
+        }
+      )
+      .subscribe((status) => {
+        console.log("Subscription status:", status);
+      });
+      
     return () => {
-      // Cleanup subscription on unmount
-      if (channelRef.current) {
-        console.log("Removing channel subscription");
-        supabase.removeChannel(channelRef.current);
-      }
+      console.log("Removing channel subscription");
+      subscription.unsubscribe();
     };
   }, []);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [updates]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchUpdates();
+    setRefreshing(false);
   };
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user || user.type !== "admin") {
-      toast({
-        title: "Permission Denied",
-        description: "Only administrators can post festival updates.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!newMessage.trim() || !user || user.type !== 'admin') return;
     
-    if (!newUpdate.trim()) {
-      toast({
-        title: "Empty Update",
-        description: "Please enter an update message.",
-        variant: "destructive",
-      });
-      return;
-    }
+    setSubmitting(true);
     
-    setIsSubmitting(true);
     try {
       const { error } = await supabase
         .from("festival_updates")
-        .insert([
-          {
-            message: newUpdate.trim(),
-            admin_id: user.id,
-          }
-        ]);
-      
+        .insert([{
+          message: newMessage.trim(),
+          admin_id: user.id
+        }]);
+        
       if (error) throw error;
       
-      setNewUpdate("");
-      toast({
-        title: "Update Posted",
-        description: "Your festival update has been posted successfully.",
-      });
+      setNewMessage("");
       
-      // Force a refetch of updates
-      queryClient.invalidateQueries({ queryKey: ['festival_updates'] });
+      toast({
+        title: "Success",
+        description: "Festival update has been posted.",
+      });
     } catch (error) {
       console.error("Error posting festival update:", error);
       toast({
         title: "Error",
-        description: "Failed to post update. Please try again.",
+        description: "Failed to post festival update.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
-
+  
   return (
-    <div className="container mx-auto px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-14rem)]"
-      >
-        <div className="mb-4">
-          <h1 className="text-3xl font-bold">Festival Updates</h1>
-          <p className="text-muted-foreground">Latest announcements and information about the festival</p>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="container max-w-4xl mx-auto px-4 py-8"
+    >
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Festival Updates</h1>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleRefresh}
+          disabled={refreshing}
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
+      
+      <div className="bg-card rounded-lg shadow-lg overflow-hidden mb-8">
+        <div className="p-4 bg-primary text-primary-foreground">
+          <h2 className="text-lg font-semibold">NextFest Announcements</h2>
         </div>
         
-        <div className="flex-1 overflow-y-auto mb-4 rounded-lg border p-4 shadow-sm">
-          {isLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="animate-pulse">
-                  <div className="h-4 bg-muted rounded w-1/3 mb-2"></div>
-                  <div className="h-4 bg-muted rounded w-1/4 mb-4"></div>
-                  <div className="h-20 bg-muted rounded mb-2"></div>
-                </div>
-              ))}
+        <div className="max-h-[60vh] overflow-y-auto p-4 flex flex-col-reverse">
+          {loading ? (
+            <div className="py-8 flex justify-center">
+              <div className="flex flex-col items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="mt-2 text-sm text-muted-foreground">Loading updates...</p>
+              </div>
             </div>
           ) : updates.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No festival updates available yet.</p>
+            <div className="py-8 text-center text-muted-foreground">
+              No festival updates yet.
             </div>
           ) : (
             <div className="space-y-4">
-              {[...updates].reverse().map((update) => (
-                <motion.div
-                  key={update.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="flex items-start gap-3"
-                >
-                  <Avatar className="h-10 w-10">
-                    {/* @ts-ignore - Dynamic property from join */}
-                    <AvatarFallback>{update.admin?.name?.charAt(0) || 'A'}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <div className="bg-primary-foreground p-3 rounded-lg">
-                      <div className="flex justify-between items-start mb-1">
-                        <p className="font-medium text-sm">
-                          {/* @ts-ignore - Dynamic property from join */}
-                          {update.admin?.name || "Admin"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(update.created_at), 'MMM d, h:mm a')}
-                        </p>
-                      </div>
-                      <p className="whitespace-pre-wrap text-sm">{update.message}</p>
-                    </div>
+              {updates.map((update) => (
+                <div key={update.id} className="flex flex-col rounded-lg bg-secondary/10 p-3">
+                  <div className="flex justify-between items-start">
+                    <span className="font-medium text-primary">{update.admin_name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(update.created_at), "MMM d, yyyy 'at' h:mm a")}
+                    </span>
                   </div>
-                </motion.div>
+                  <p className="mt-1 text-foreground">{update.message}</p>
+                </div>
               ))}
-              <div ref={messagesEndRef} />
             </div>
           )}
         </div>
         
-        {user?.type === "admin" && (
-          <div className="sticky bottom-0 bg-background pt-2">
-            <form onSubmit={handleSubmit} className="flex items-end gap-2">
-              <div className="flex-1">
-                <Textarea
-                  placeholder="Post a new festival update..."
-                  value={newUpdate}
-                  onChange={(e) => setNewUpdate(e.target.value)}
-                  rows={3}
-                  className="resize-none"
-                />
-              </div>
-              <Button type="submit" disabled={isSubmitting} size="icon" className="h-10 w-10">
-                <Send className="h-4 w-4" />
+        {user && user.type === 'admin' && (
+          <>
+            <Separator />
+            <form onSubmit={handleSubmit} className="p-4 flex gap-2">
+              <Input
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                placeholder="Type your announcement here..."
+                disabled={submitting}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={submitting || !newMessage.trim()}>
+                <Send className="h-4 w-4 mr-2" />
+                Post
               </Button>
             </form>
-          </div>
+          </>
         )}
-      </motion.div>
-    </div>
+      </div>
+    </motion.div>
   );
 };
 

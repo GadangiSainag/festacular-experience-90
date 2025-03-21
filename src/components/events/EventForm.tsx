@@ -1,214 +1,295 @@
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { CalendarIcon } from "lucide-react";
-import { categoryFilterOptions } from "@/hooks/useEvents";
+import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
+import { Event, EventCategory } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-const FormSchema = z.object({
-  name: z.string().min(2, {
-    message: "Event name must be at least 2 characters.",
-  }),
-  category: z.string().min(1, {
-    message: "Category is required.",
-  }),
-  date: z.date({
-    required_error: "A date is required.",
-  }),
-  time: z.string().min(5, {
-    message: "Time is required",
-  }),
-  venue: z.string().min(2, {
-    message: "Venue must be at least 2 characters.",
-  }),
-  department: z.string().optional(),
-  college: z.string().optional(),
-  description: z.string().min(10, {
-    message: "Description must be at least 10 characters.",
-  }),
-  image_url: z.string().url("Invalid URL format").optional(),
-});
-
-interface EventFormProps {
-  onSubmit: (values: z.infer<typeof FormSchema>) => void;
-  defaultValues?: Partial<z.infer<typeof FormSchema>>;
+// Event form values excluding computed fields
+interface EventFormValues {
+  name: string;
+  description: string;
+  category: EventCategory;
+  date: string;
+  time: string;
+  venue: string;
+  department?: string;
+  college?: string;
+  image_url?: string;
 }
 
-const EventForm = ({ onSubmit, defaultValues }: EventFormProps) => {
-  const form = useForm<z.infer<typeof FormSchema>>({
-    resolver: zodResolver(FormSchema),
-    defaultValues,
-    mode: "onChange"
+interface EventFormProps {
+  existingEvent?: Event;
+  onSuccess?: (event: Event) => void;
+}
+
+const EventForm: React.FC<EventFormProps> = ({ existingEvent, onSuccess }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState(existingEvent?.image_url || '');
+  
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<EventFormValues>({
+    defaultValues: {
+      name: existingEvent?.name || '',
+      description: existingEvent?.description || '',
+      category: existingEvent?.category || 'competition',
+      date: existingEvent?.date ? new Date(existingEvent.date).toISOString().substring(0, 10) : '',
+      time: existingEvent?.time || '',
+      venue: existingEvent?.venue || '',
+      department: existingEvent?.department || '',
+      college: existingEvent?.college || '',
+      image_url: existingEvent?.image_url || '',
+    }
   });
-
-  const { control, register, handleSubmit, formState } = form;
-
+  
+  // Set image URL in form when input changes
+  useEffect(() => {
+    setValue('image_url', imageUrlInput);
+  }, [imageUrlInput, setValue]);
+  
+  const onSubmit = async (data: EventFormValues) => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'You must be logged in to create or edit events.',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      if (existingEvent) {
+        // Update existing event
+        const { data: updatedEvent, error } = await supabase
+          .from('events')
+          .update({
+            ...data,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingEvent.id)
+          .select('*')
+          .single();
+        
+        if (error) throw error;
+        
+        toast({
+          title: 'Event updated',
+          description: 'Your event has been updated successfully.'
+        });
+        
+        if (onSuccess && updatedEvent) {
+          onSuccess(updatedEvent as Event);
+        }
+      } else {
+        // Create new event
+        const { data: newEvent, error } = await supabase
+          .from('events')
+          .insert([{
+            ...data,
+            organizer_id: user.id,
+            is_approved: user.type === 'admin' // Auto-approve if admin
+          }])
+          .select('*')
+          .single();
+        
+        if (error) throw error;
+        
+        toast({
+          title: 'Event created',
+          description: user.type === 'admin' 
+            ? 'Your event has been created and published.'
+            : 'Your event has been created and is pending approval.'
+        });
+        
+        reset();
+        
+        if (onSuccess && newEvent) {
+          onSuccess(newEvent as Event);
+        } else {
+          navigate(`/event/${newEvent.id}`);
+        }
+      }
+    } catch (error: any) {
+      console.error('Error submitting event:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save event.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="name">Event Name</Label>
-        <Input
-          id="name"
-          placeholder="NextFest Hackathon"
-          {...register("name")}
-        />
-        {formState.errors.name && (
-          <p className="text-sm text-destructive">{formState.errors.name.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="category">Category</Label>
-        <Select onValueChange={(value) => form.setValue("category", value)}>
-          <SelectTrigger id="category">
-            <SelectValue placeholder="Select a category" />
-          </SelectTrigger>
-          <SelectContent>
-            {categoryFilterOptions.map((category) => (
-              <SelectItem key={category.value} value={category.value}>
-                {category.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {formState.errors.category && (
-          <p className="text-sm text-destructive">{formState.errors.category.message}</p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label>Date</Label>
-          <Controller
-            control={control}
-            name="date"
-            render={({ field }) => (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-[240px] justify-start text-left font-normal",
-                      !field.value && "text-muted-foreground"
-                    )}
-                  >
-                    {field.value ? (
-                      new Date(field.value).toLocaleDateString()
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) =>
-                      date < new Date()
-                    }
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
-          />
-          {formState.errors.date && (
-            <p className="text-sm text-destructive">{formState.errors.date.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="time">Time</Label>
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="name">Event Name *</Label>
           <Input
-            type="time"
-            id="time"
-            {...register("time")}
+            id="name"
+            {...register('name', { required: 'Event name is required' })}
+            placeholder="Enter event name"
           />
-          {formState.errors.time && (
-            <p className="text-sm text-destructive">{formState.errors.time.message}</p>
-          )}
+          {errors.name && <p className="text-sm text-red-500 mt-1">{errors.name.message}</p>}
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="venue">Venue</Label>
-        <Input
-          id="venue"
-          placeholder="Main Auditorium"
-          {...register("venue")}
-        />
-        {formState.errors.venue && (
-          <p className="text-sm text-destructive">{formState.errors.venue.message}</p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="department">Department (optional)</Label>
+        
+        <div>
+          <Label htmlFor="description">Description</Label>
+          <Textarea
+            id="description"
+            {...register('description')}
+            rows={5}
+            placeholder="Describe your event"
+          />
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="category">Category *</Label>
+            <Select
+              onValueChange={(value) => setValue('category', value as EventCategory)}
+              defaultValue={watch('category')}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="competition">Competition</SelectItem>
+                <SelectItem value="workshop">Workshop</SelectItem>
+                <SelectItem value="performance">Performance</SelectItem>
+                <SelectItem value="lecture">Lecture</SelectItem>
+                <SelectItem value="exhibit">Exhibition</SelectItem>
+                <SelectItem value="stall">Stall</SelectItem>
+                <SelectItem value="food">Food</SelectItem>
+                <SelectItem value="games">Games</SelectItem>
+                <SelectItem value="sport">Sport</SelectItem>
+                <SelectItem value="merch">Merchandise</SelectItem>
+                <SelectItem value="art">Art</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="venue">Venue *</Label>
+            <Input
+              id="venue"
+              {...register('venue', { required: 'Venue is required' })}
+              placeholder="Event location"
+            />
+            {errors.venue && <p className="text-sm text-red-500 mt-1">{errors.venue.message}</p>}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="date">Date *</Label>
+            <Input
+              id="date"
+              type="date"
+              {...register('date', { required: 'Date is required' })}
+            />
+            {errors.date && <p className="text-sm text-red-500 mt-1">{errors.date.message}</p>}
+          </div>
+          
+          <div>
+            <Label htmlFor="time">Time *</Label>
+            <Input
+              id="time"
+              type="time"
+              {...register('time', { required: 'Time is required' })}
+            />
+            {errors.time && <p className="text-sm text-red-500 mt-1">{errors.time.message}</p>}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="department">Department</Label>
+            <Input
+              id="department"
+              {...register('department')}
+              placeholder="Organizing department (optional)"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="college">College</Label>
+            <Input
+              id="college"
+              {...register('college')}
+              placeholder="College name (optional)"
+            />
+          </div>
+        </div>
+        
+        <div>
+          <Label htmlFor="image_url">Image URL</Label>
           <Input
-            id="department"
-            placeholder="Computer Science"
-            {...register("department")}
+            id="image_url"
+            type="url"
+            value={imageUrlInput}
+            onChange={(e) => setImageUrlInput(e.target.value)}
+            placeholder="https://example.com/image.jpg"
           />
-          {formState.errors.department && (
-            <p className="text-sm text-destructive">{formState.errors.department.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="college">College (optional)</Label>
-          <Input
-            id="college"
-            placeholder="College of Engineering"
-            {...register("college")}
-          />
-          {formState.errors.college && (
-            <p className="text-sm text-destructive">{formState.errors.college.message}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
-        <Textarea
-          id="description"
-          placeholder="Write a detailed description about the event..."
-          {...register("description")}
-        />
-        {formState.errors.description && (
-          <p className="text-sm text-destructive">{formState.errors.description.message}</p>
-        )}
-      </div>
-
-      {/* Inside the form, replace the image upload field with: */}
-      <div className="space-y-2">
-        <Label htmlFor="image_url">Image URL</Label>
-        <Input
-          id="image_url"
-          placeholder="https://example.com/image.jpg"
-          {...register("image_url")}
-        />
-        <p className="text-xs text-muted-foreground">
-          Enter a URL for the event image. Leave blank for no image.
-        </p>
-        {formState.errors.image_url && (
-          <p className="text-sm text-destructive">
-            {formState.errors.image_url.message}
+          <p className="text-xs text-muted-foreground mt-1">
+            Enter a URL for the event image (optional)
           </p>
-        )}
+          
+          {imageUrlInput && (
+            <div className="mt-2 rounded-md border overflow-hidden w-40 h-24 relative">
+              <img 
+                src={imageUrlInput}
+                alt="Preview" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/placeholder.svg";
+                }}
+              />
+            </div>
+          )}
+        </div>
       </div>
-
-      <Button type="submit">Submit</Button>
+      
+      <div className="flex justify-end gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            if (existingEvent) {
+              onSuccess?.(existingEvent);
+            } else {
+              navigate(-1);
+            }
+          }}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting 
+            ? 'Saving...' 
+            : existingEvent 
+              ? 'Update Event' 
+              : 'Create Event'
+          }
+        </Button>
+      </div>
     </form>
   );
 };

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,12 +52,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (err) {
             console.error("Error in auth state change handler:", err);
             setUser(null);
+          } finally {
+            setIsLoading(false);
           }
         }
       } else if (event === "SIGNED_OUT") {
         console.log("User signed out");
         setUser(null);
         setSession(null);
+        setIsLoading(false);
       }
     });
 
@@ -106,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
         throw error;
@@ -126,13 +130,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: error.message || "Please check your credentials and try again.",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string, userData: Partial<User>) => {
     try {
+      setIsLoading(true);
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({ 
         email, 
@@ -174,12 +178,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: error.message || "Please try again with different credentials.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
       await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
       toast({
         title: "Signed out",
         description: "You've been successfully signed out.",
@@ -192,6 +201,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: error.message || "Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
