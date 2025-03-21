@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,30 +28,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state change listener FIRST to catch any auth events during initialization
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log("Auth state changed:", event, newSession?.user?.id);
-      setSession(newSession);
       
-      if (event === "SIGNED_IN" && newSession?.user) {
-        // Fetch user profile when signed in
-        try {
-          const { data, error } = await supabase
-            .from("users")
-            .select("*")
-            .eq("auth_id", newSession.user.id)
-            .single();
-          
-          if (!error && data) {
-            console.log("User profile fetched:", data);
-            setUser(data);
-          } else {
-            console.error("Error fetching user profile on auth change:", error);
+      if (newSession) {
+        setSession(newSession);
+        
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+          try {
+            // Fetch user profile
+            const { data, error } = await supabase
+              .from("users")
+              .select("*")
+              .eq("auth_id", newSession.user.id)
+              .single();
+            
+            if (!error && data) {
+              console.log("User profile fetched:", data);
+              setUser(data);
+            } else {
+              console.error("Error fetching user profile on auth change:", error);
+              setUser(null);
+            }
+          } catch (err) {
+            console.error("Error in auth state change handler:", err);
             setUser(null);
           }
-        } catch (err) {
-          console.error("Error in auth state change handler:", err);
         }
       } else if (event === "SIGNED_OUT") {
         console.log("User signed out");
         setUser(null);
+        setSession(null);
       }
     });
 
@@ -62,9 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         console.log("Initial session check:", sessionData.session?.user?.id);
-        setSession(sessionData.session);
         
         if (sessionData.session?.user) {
+          setSession(sessionData.session);
+          
           const { data: userData, error } = await supabase
             .from("users")
             .select("*")
@@ -80,10 +85,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } else {
           setUser(null);
+          setSession(null);
         }
       } catch (error) {
         console.error("Auth initialization error:", error);
         setUser(null);
+        setSession(null);
       } finally {
         setIsLoading(false);
       }
@@ -98,12 +105,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setIsLoading(true);
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
         throw error;
       }
       
+      // Success will be handled by the auth state change listener
       toast({
         title: "Welcome back!",
         description: "You've successfully signed in.",
@@ -117,6 +126,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: error.message || "Please check your credentials and try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 

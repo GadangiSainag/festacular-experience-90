@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,16 +23,21 @@ type LoginFormValues = {
 };
 
 const Login = () => {
-  const { signIn } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, isLoading, user } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>();
 
+  // If user is already logged in, redirect to home page
+  if (user) {
+    return <Navigate to="/" />;
+  }
+
   const onSubmit = async (data: LoginFormValues) => {
-    setIsLoading(true);
+    setSubmitting(true);
     try {
       await signIn(data.email, data.password);
     } finally {
-      setIsLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -61,6 +66,7 @@ const Login = () => {
                     id="email"
                     placeholder="you@example.com"
                     className="pl-10"
+                    disabled={submitting || isLoading}
                     {...register("email", {
                       required: "Email is required",
                       pattern: {
@@ -84,6 +90,7 @@ const Login = () => {
                     id="password"
                     type="password"
                     className="pl-10"
+                    disabled={submitting || isLoading}
                     {...register("password", {
                       required: "Password is required",
                       minLength: {
@@ -97,8 +104,12 @@ const Login = () => {
                   <p className="text-sm text-red-500">{errors.password.message}</p>
                 )}
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign in"}
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={submitting || isLoading}
+              >
+                {submitting ? "Signing in..." : "Sign in"}
               </Button>
             </form>
           </CardContent>

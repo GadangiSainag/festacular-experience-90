@@ -8,62 +8,18 @@ import { Event, EventCategory } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { useStarredEvents } from "@/hooks/useEvents";
 
 const StarredEvents = () => {
   const { user } = useAuth();
-  const [starredEvents, setStarredEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
+  const { data: starredEvents, isLoading, error } = useStarredEvents();
+  const [localEvents, setLocalEvents] = useState<Event[]>([]);
+  
   useEffect(() => {
-    const fetchStarredEvents = async () => {
-      if (!user) return;
-      
-      setIsLoading(true);
-      try {
-        // Get starred events for the current user
-        const { data: starredData, error: starredError } = await supabase
-          .from("starred_events")
-          .select("event_id")
-          .eq("user_id", user.id);
-        
-        if (starredError) throw starredError;
-        
-        if (starredData.length === 0) {
-          setStarredEvents([]);
-          return;
-        }
-        
-        // Get the actual event details
-        const eventIds = starredData.map(item => item.event_id);
-        const { data: eventsData, error: eventsError } = await supabase
-          .from("events")
-          .select("*")
-          .in("id", eventIds);
-        
-        if (eventsError) throw eventsError;
-        
-        // Add is_starred flag to each event and properly cast the category
-        const eventsWithStarred = eventsData?.map(event => ({
-          ...event,
-          category: event.category as EventCategory,
-          is_starred: true
-        })) as Event[];
-        
-        setStarredEvents(eventsWithStarred);
-      } catch (error) {
-        console.error("Error fetching starred events:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load starred events. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchStarredEvents();
-  }, [user]);
+    if (starredEvents) {
+      setLocalEvents(starredEvents);
+    }
+  }, [starredEvents]);
 
   const handleUnstar = async (eventId: string) => {
     if (!user) return;
@@ -78,7 +34,7 @@ const StarredEvents = () => {
       if (error) throw error;
       
       // Update local state
-      setStarredEvents(prev => prev.filter(event => event.id !== eventId));
+      setLocalEvents(prev => prev.filter(event => event.id !== eventId));
       
       toast({
         title: "Event removed",
@@ -106,7 +62,18 @@ const StarredEvents = () => {
     );
   }
 
-  if (starredEvents.length === 0) {
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500">Error loading starred events.</p>
+        <Button onClick={() => window.location.reload()} className="mt-4">
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
+  if (localEvents.length === 0) {
     return (
       <div className="text-center py-12">
         <Star className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -121,7 +88,7 @@ const StarredEvents = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {starredEvents.map((event) => (
+      {localEvents.map((event) => (
         <Card key={event.id} className="overflow-hidden group">
           <div className="relative h-40 bg-muted">
             {event.image_url ? (

@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { FestivalUpdate, EventUpdate } from "@/types";
 import { toast } from "@/hooks/use-toast";
+import { format } from "date-fns";
 
 const UpdatesNotification = () => {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ const UpdatesNotification = () => {
   const [eventUpdates, setEventUpdates] = useState<EventUpdate[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [lastReadTimestamp, setLastReadTimestamp] = useState<string | null>(null);
   const festivalChannelRef = useRef<any>(null);
   const eventChannelRef = useRef<any>(null);
 
@@ -26,6 +28,11 @@ const UpdatesNotification = () => {
     const fetchUpdates = async () => {
       try {
         console.log("Fetching initial updates");
+        
+        // Get last read timestamp from local storage
+        const storedTimestamp = localStorage.getItem('lastReadUpdatesTimestamp');
+        setLastReadTimestamp(storedTimestamp);
+        
         // Fetch festival updates
         const { data: festivalData, error: festivalError } = await supabase
           .from("festival_updates")
@@ -50,11 +57,24 @@ const UpdatesNotification = () => {
         setFestivalUpdates(festivalData || []);
         setEventUpdates(eventData || []);
         
-        // Calculate unread count (this would typically use a "last_read" timestamp in a real app)
-        // For this example, we'll just show the total as unread
-        const totalUnread = (festivalData?.length || 0) + (eventData?.length || 0);
-        setUnreadCount(totalUnread);
-        console.log("Setting initial unread count:", totalUnread);
+        // Calculate unread count based on last read timestamp
+        if (storedTimestamp) {
+          const lastReadDate = new Date(storedTimestamp);
+          const unreadFestivalCount = (festivalData || []).filter(
+            update => new Date(update.created_at) > lastReadDate
+          ).length;
+          
+          const unreadEventCount = (eventData || []).filter(
+            update => new Date(update.created_at) > lastReadDate
+          ).length;
+          
+          setUnreadCount(unreadFestivalCount + unreadEventCount);
+          console.log("Unread count:", unreadFestivalCount + unreadEventCount);
+        } else {
+          // If no timestamp exists, consider all as unread
+          setUnreadCount((festivalData?.length || 0) + (eventData?.length || 0));
+          console.log("No timestamp, all unread:", (festivalData?.length || 0) + (eventData?.length || 0));
+        }
       } catch (error) {
         console.error("Error fetching updates:", error);
       }
@@ -139,12 +159,14 @@ const UpdatesNotification = () => {
     if (open) {
       // Mark as read when opening
       setUnreadCount(0);
+      const now = new Date().toISOString();
+      localStorage.setItem('lastReadUpdatesTimestamp', now);
+      setLastReadTimestamp(now);
     }
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
+    return format(new Date(dateString), 'MMM d, h:mm a');
   };
 
   return (

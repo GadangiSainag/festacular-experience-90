@@ -9,6 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Send } from "lucide-react";
+import { format } from "date-fns";
 
 const FestivalUpdates = () => {
   const { user } = useAuth();
@@ -18,6 +21,7 @@ const FestivalUpdates = () => {
   const [newUpdate, setNewUpdate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const channelRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchUpdates = async () => {
@@ -77,6 +81,9 @@ const FestivalUpdates = () => {
                   title: "New Festival Update",
                   description: data.message.substring(0, 100) + (data.message.length > 100 ? '...' : ''),
                 });
+                
+                // Scroll to bottom
+                scrollToBottom();
               }
             }
           )
@@ -100,6 +107,14 @@ const FestivalUpdates = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [updates]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,44 +170,20 @@ const FestivalUpdates = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="max-w-3xl mx-auto"
+        className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-14rem)]"
       >
-        <div className="mb-6">
+        <div className="mb-4">
           <h1 className="text-3xl font-bold">Festival Updates</h1>
           <p className="text-muted-foreground">Latest announcements and information about the festival</p>
         </div>
         
-        {user?.type === "admin" && (
-          <div className="mb-8">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <Textarea
-                placeholder="Post a new festival update..."
-                value={newUpdate}
-                onChange={(e) => setNewUpdate(e.target.value)}
-                rows={4}
-              />
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Posting..." : "Post Update"}
-                </Button>
-              </div>
-            </form>
-            <Separator className="my-8" />
-          </div>
-        )}
-        
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto mb-4 rounded-lg border p-4 shadow-sm">
           {isLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
@@ -208,30 +199,58 @@ const FestivalUpdates = () => {
               <p className="text-muted-foreground">No festival updates available yet.</p>
             </div>
           ) : (
-            updates.map((update) => (
-              <motion.div
-                key={update.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-card rounded-lg border p-4 shadow-sm"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="font-medium">
-                      {/* @ts-ignore - Dynamic property from join */}
-                      {update.admin?.name || "Admin"}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(update.created_at)}
-                    </p>
+            <div className="space-y-4">
+              {[...updates].reverse().map((update) => (
+                <motion.div
+                  key={update.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex items-start gap-3"
+                >
+                  <Avatar className="h-10 w-10">
+                    {/* @ts-ignore - Dynamic property from join */}
+                    <AvatarFallback>{update.admin?.name?.charAt(0) || 'A'}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="bg-primary-foreground p-3 rounded-lg">
+                      <div className="flex justify-between items-start mb-1">
+                        <p className="font-medium text-sm">
+                          {/* @ts-ignore - Dynamic property from join */}
+                          {update.admin?.name || "Admin"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(update.created_at), 'MMM d, h:mm a')}
+                        </p>
+                      </div>
+                      <p className="whitespace-pre-wrap text-sm">{update.message}</p>
+                    </div>
                   </div>
-                </div>
-                <p className="whitespace-pre-wrap">{update.message}</p>
-              </motion.div>
-            ))
+                </motion.div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
           )}
         </div>
+        
+        {user?.type === "admin" && (
+          <div className="sticky bottom-0 bg-background pt-2">
+            <form onSubmit={handleSubmit} className="flex items-end gap-2">
+              <div className="flex-1">
+                <Textarea
+                  placeholder="Post a new festival update..."
+                  value={newUpdate}
+                  onChange={(e) => setNewUpdate(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
+              <Button type="submit" disabled={isSubmitting} size="icon" className="h-10 w-10">
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          </div>
+        )}
       </motion.div>
     </div>
   );

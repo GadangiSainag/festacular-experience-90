@@ -2,9 +2,7 @@
 /**
  * Seed Data for NextFest
  * 
- * Use this script to populate your database with sample data.
- * Run this function with a console.log to get the SQL statements,
- * or adapt it to your needs.
+ * Use this function to generate seed data to be inserted into the database.
  */
 
 export const generateSeedData = (adminId: string) => {
@@ -56,6 +54,20 @@ export const generateSeedData = (adminId: string) => {
     'Fashion Show', 'Poetry Slam'
   ];
 
+  // Sample image URLs for events
+  const eventImages = [
+    'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?q=80&w=1000',
+    'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1000',
+    'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1000',
+    'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=1000',
+    'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=1000',
+    'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=1000',
+    'https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=1000',
+    'https://images.unsplash.com/photo-1560523159-4a9692d222f8?q=80&w=1000',
+    'https://images.unsplash.com/photo-1546768292-fb12f6c92568?q=80&w=1000',
+    'https://images.unsplash.com/photo-1568992687947-868a62a9f521?q=80&w=1000'
+  ];
+
   const now = new Date();
   const oneMonthFromNow = new Date();
   oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
@@ -69,6 +81,7 @@ export const generateSeedData = (adminId: string) => {
     const department = departments[Math.floor(Math.random() * departments.length)];
     const college = colleges[Math.floor(Math.random() * colleges.length)];
     const name = eventNames[i % eventNames.length];
+    const imageUrl = i < 10 ? eventImages[i] : null; // Only add images to some events
     
     events.push({
       name,
@@ -78,9 +91,13 @@ export const generateSeedData = (adminId: string) => {
       venue,
       department,
       college,
+      image_url: imageUrl,
       description: `This is a sample description for the ${name} event. It will be held on ${formatDate(eventDate)} at ${venue}. All ${department} students are welcome to participate!`,
       organizer_id: admin_id,
-      is_approved: true
+      is_approved: true,
+      // Add coordinates for map view
+      latitude: 17.4 + (Math.random() * 0.1),   // Sample coordinates near Hyderabad
+      longitude: 78.4 + (Math.random() * 0.1)
     });
   }
 
@@ -90,7 +107,12 @@ export const generateSeedData = (adminId: string) => {
     'The registration for all competitions is now open. Register before the deadline!',
     'Special announcement: Celebrity performance on Day 2. Don\'t miss it!',
     'Due to popular demand, we have extended the registration deadline for Hackathon.',
-    'Food stalls will be open from 10 AM to 10 PM every day during the fest.'
+    'Food stalls will be open from 10 AM to 10 PM every day during the fest.',
+    'Workshop registrations are filling up fast! Secure your spot today.',
+    'Reminder: All participants must have their ID cards with them at all venues.',
+    'Weather update: Expect light rain on Day 3. Indoor events will proceed as scheduled.',
+    'Lost and found station has been set up near the registration desk.',
+    'Technical issues with the online registration have been resolved. Thanks for your patience!'
   ];
 
   const festivalUpdates = updateMessages.map(message => ({
@@ -98,38 +120,12 @@ export const generateSeedData = (adminId: string) => {
     admin_id
   }));
 
-  // Generate SQL for events
-  const eventsSQL = events.map(event => `
-INSERT INTO events (name, category, date, time, venue, department, college, description, organizer_id, is_approved)
-VALUES (
-  '${event.name}',
-  '${event.category}',
-  '${event.date}',
-  '${event.time}',
-  '${event.venue}',
-  '${event.department}',
-  '${event.college}',
-  '${event.description}',
-  '${event.organizer_id}',
-  ${event.is_approved}
-);`).join('\n');
-
-  // Generate SQL for festival updates
-  const updatesSQL = festivalUpdates.map(update => `
-INSERT INTO festival_updates (message, admin_id)
-VALUES (
-  '${update.message}',
-  '${update.admin_id}'
-);`).join('\n');
-
   return {
-    eventsSQL,
-    updatesSQL,
-    fullSQL: `-- Events\n${eventsSQL}\n\n-- Festival Updates\n${updatesSQL}`
+    events,
+    festivalUpdates
   };
 };
 
-// Example usage:
-// const adminId = "your-admin-user-id"; // Replace with your admin user ID
-// const seedData = generateSeedData(adminId);
-// console.log(seedData.fullSQL);
+// Usage example in console:
+// import { insertSeedData } from '@/utils/insertSeedData';
+// insertSeedData('your-admin-user-id');

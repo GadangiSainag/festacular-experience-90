@@ -36,6 +36,7 @@ const UserEvents = () => {
           .select("*");
         
         // If the user is an organizer, show only their events
+        // If admin, show all events
         if (user.type === 'organizer') {
           query = query.eq("organizer_id", user.id);
         }
@@ -44,13 +45,20 @@ const UserEvents = () => {
         
         if (error) throw error;
         
-        // Properly cast the events with the correct category type
-        const typedEvents = (data || []).map(event => ({
-          ...event,
-          category: event.category as EventCategory
-        })) as Event[];
-        
-        setUserEvents(typedEvents);
+        if (data && data.length > 0) {
+          console.log("Fetched events for user:", data);
+          
+          // Properly cast the events with the correct category type
+          const typedEvents = data.map(event => ({
+            ...event,
+            category: event.category as EventCategory
+          })) as Event[];
+          
+          setUserEvents(typedEvents);
+        } else {
+          console.log("No events found for user");
+          setUserEvents([]);
+        }
       } catch (error) {
         console.error("Error fetching user events:", error);
         toast({
