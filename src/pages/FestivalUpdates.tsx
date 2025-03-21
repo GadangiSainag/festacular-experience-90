@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Update {
   id: string;
@@ -76,8 +79,11 @@ const FestivalUpdates = () => {
             .eq("id", payload.new.admin_id)
             .single();
             
-          const newUpdate = {
-            ...payload.new,
+          const newUpdate: Update = {
+            id: payload.new.id,
+            message: payload.new.message,
+            admin_id: payload.new.admin_id,
+            created_at: payload.new.created_at,
             admin_name: userData?.name || "Unknown Admin"
           };
           
@@ -135,6 +141,15 @@ const FestivalUpdates = () => {
     }
   };
   
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+  
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -155,39 +170,48 @@ const FestivalUpdates = () => {
         </Button>
       </div>
       
-      <div className="bg-card rounded-lg shadow-lg overflow-hidden mb-8">
+      <Card className="shadow-lg overflow-hidden">
         <div className="p-4 bg-primary text-primary-foreground">
           <h2 className="text-lg font-semibold">NextFest Announcements</h2>
         </div>
         
-        <div className="max-h-[60vh] overflow-y-auto p-4 flex flex-col-reverse">
-          {loading ? (
-            <div className="py-8 flex justify-center">
-              <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <p className="mt-2 text-sm text-muted-foreground">Loading updates...</p>
-              </div>
-            </div>
-          ) : updates.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              No festival updates yet.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {updates.map((update) => (
-                <div key={update.id} className="flex flex-col rounded-lg bg-secondary/10 p-3">
-                  <div className="flex justify-between items-start">
-                    <span className="font-medium text-primary">{update.admin_name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(update.created_at), "MMM d, yyyy 'at' h:mm a")}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-foreground">{update.message}</p>
+        <ScrollArea className="h-[60vh]">
+          <div className="p-4 flex flex-col-reverse space-y-reverse space-y-4">
+            {loading ? (
+              <div className="py-8 flex justify-center">
+                <div className="flex flex-col items-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <p className="mt-2 text-sm text-muted-foreground">Loading updates...</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ) : updates.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                No festival updates yet.
+              </div>
+            ) : (
+              updates.map((update) => (
+                <div key={update.id} className="flex gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-primary/10 text-xs">
+                      {getInitials(update.admin_name || "NA")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex items-baseline">
+                      <span className="font-medium mr-2">{update.admin_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(update.created_at), "MMM d, yyyy 'at' h:mm a")}
+                      </span>
+                    </div>
+                    <div className="mt-1 p-3 bg-secondary/10 rounded-lg text-foreground">
+                      {update.message}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
         
         {user && user.type === 'admin' && (
           <>
@@ -207,7 +231,7 @@ const FestivalUpdates = () => {
             </form>
           </>
         )}
-      </div>
+      </Card>
     </motion.div>
   );
 };

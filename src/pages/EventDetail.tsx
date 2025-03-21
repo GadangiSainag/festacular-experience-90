@@ -7,7 +7,12 @@ import { Event, EventCategory } from "@/types";
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { data: event, isLoading, error } = useEvent(id);
+  const { data: event, isLoading, error, refetch } = useEvent(id);
+
+  const handleEventUpdated = (updatedEvent: Event) => {
+    // Refetch the event data to get the updated event
+    refetch();
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -41,7 +46,10 @@ const EventDetail = () => {
             </p>
           </div>
         ) : event ? (
-          <EventDetailView event={event as Event} />
+          <EventDetailView 
+            event={event as Event} 
+            onEventUpdated={handleEventUpdated}
+          />
         ) : null}
       </motion.div>
     </div>

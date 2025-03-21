@@ -7,7 +7,7 @@ import { Calendar, Clock, MapPin, Edit, Star, SendHorizontal, RefreshCw } from '
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { Event, EventCategory } from '@/types';
+import { Event, EventCategory, EventUpdate } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -18,19 +18,14 @@ import EventForm from './EventForm';
 
 interface EventDetailViewProps {
   event: Event;
-  onEventUpdated: (updatedEvent: Event) => void;
+  onEventUpdated?: (updatedEvent: Event) => void;
 }
 
-interface EventUpdate {
-  id: string;
-  event_id: string;
-  message: string;
-  created_at: string;
-  user_id: string;
+interface EventUpdateWithUserName extends EventUpdate {
   user_name?: string;
 }
 
-const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated }) => {
+const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated = () => {} }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isStarred, setIsStarred] = useState(false);
@@ -39,7 +34,7 @@ const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated
   const [isEditing, setIsEditing] = useState(false);
   const [newUpdate, setNewUpdate] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [eventUpdates, setEventUpdates] = useState<EventUpdate[]>([]);
+  const [eventUpdates, setEventUpdates] = useState<EventUpdateWithUserName[]>([]);
   const [loadingUpdates, setLoadingUpdates] = useState(true);
   const [refreshingUpdates, setRefreshingUpdates] = useState(false);
 
@@ -114,8 +109,12 @@ const EventDetailView: React.FC<EventDetailViewProps> = ({ event, onEventUpdated
             .eq('id', payload.new.user_id)
             .single();
             
-          const newUpdate = {
-            ...payload.new,
+          const newUpdate: EventUpdateWithUserName = {
+            id: payload.new.id,
+            event_id: payload.new.event_id,
+            message: payload.new.message,
+            user_id: payload.new.user_id,
+            created_at: payload.new.created_at,
             user_name: userData?.name || 'Unknown'
           };
           
