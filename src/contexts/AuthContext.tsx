@@ -26,45 +26,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Set up auth state change listener FIRST to catch any auth events during initialization
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log("Auth state changed:", event, newSession?.user?.id);
-      
-      if (newSession) {
-        setSession(newSession);
-        
-        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-          try {
-            // Fetch user profile
-            const { data, error } = await supabase
-              .from("users")
-              .select("*")
-              .eq("auth_id", newSession.user.id)
-              .single();
-            
-            if (!error && data) {
-              console.log("User profile fetched:", data);
-              setUser(data);
-            } else {
-              console.error("Error fetching user profile on auth change:", error);
-              setUser(null);
-            }
-          } catch (err) {
-            console.error("Error in auth state change handler:", err);
-            setUser(null);
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      } else if (event === "SIGNED_OUT") {
-        console.log("User signed out");
-        setUser(null);
-        setSession(null);
-        setIsLoading(false);
-      }
-    });
-
-    // THEN check for existing session on page load
+    let subscription: { unsubscribe: () => void } | null = null;
+    
+    // First check for existing session
     const initializeAuth = async () => {
       setIsLoading(true);
       try {
@@ -97,13 +61,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(null);
       } finally {
         setIsLoading(false);
+        
+        // Now set up the auth listener AFTER initial check completes
+        setupAuthListener();
       }
+    };
+
+    const setupAuthListener = () => {
+      const { data } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+        console.log("Auth state changed:", event, newSession?.user?.id);
+        
+        if (newSession) {
+          setSession(newSession);
+          
+          if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+            setIsLoading(true);
+            try {
+              // Fetch user profile
+              const { data, error } = await supabase
+                .from("users")
+                .select("*")
+                .eq("auth_id", newSession.user.id)
+                .single();
+              
+              if (!error && data) {
+                console.log("User profile fetched:", data);
+                setUser(data);
+              } else {
+                console.error("Error fetching user profile on auth change:", error);
+                setUser(null);
+              }
+            } catch (err) {
+              console.error("Error in auth state change handler:", err);
+              setUser(null);
+            } finally {
+              setIsLoading(false);
+            }
+          }
+        } else if (event === "SIGNED_OUT") {
+          console.log("User signed out");
+          setUser(null);
+          setSession(null);
+          setIsLoading(false);
+        }
+      });
+      
+      subscription = data.subscription;
     };
 
     initializeAuth();
 
     return () => {
-      subscription.unsubscribe();
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 
@@ -180,6 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     } finally {
       setIsLoading(false);
+      
     }
   };
 
